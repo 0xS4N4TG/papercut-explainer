@@ -32,7 +32,7 @@ if (!chromePath) { console.error('No Chrome/Chromium found: set CHROME_PATH to t
 const tryReq = (base) => { try { return createRequire(base)('puppeteer-core'); } catch { return null; } };
 const puppeteer = tryReq(path.resolve('package.json')) || tryReq(path.join(LIB, '..', 'papercut', 'template', 'package.json'));
 if (!puppeteer) { console.error('puppeteer-core not found: npm i -D puppeteer-core@24 in the project'); process.exit(1); }
-const browser = await puppeteer.launch({executablePath: chromePath, headless: true});
+const browser = await puppeteer.launch({executablePath: chromePath, headless: true, args: process.getuid?.() === 0 ? ['--no-sandbox'] : []});
 const page = await browser.newPage();
 page.on('console', (m) => { if (m.type() === 'warn' || m.type() === 'error') console.error('[page]', m.text()); });
 await page.setContent(`<!doctype html><meta charset="utf-8"><script>${js}</script>`);

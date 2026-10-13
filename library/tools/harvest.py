@@ -5,6 +5,8 @@
 # Read-only: it prints a report and changes nothing.
 import filecmp, glob, json, os, re, sys
 LIB = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help'):
+    sys.exit('usage: python3 harvest.py <papercut project dir>')
 P = os.path.abspath(sys.argv[1]); src = f"{P}/src"
 kit = f"{LIB}/papercut/kit"
 base = f"{src}/lib" if os.path.isdir(f"{src}/lib") else src          # the synced kit lives in src/lib

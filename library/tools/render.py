@@ -134,10 +134,19 @@ def main():
     os.makedirs('out/chunks', exist_ok=True)
 
     # audio in the background: mix.py, then limiter + loudnorm (as before)
+    # clear old results first, so a failed audio step can never mux the previous run's audio
+    for old in ('out/chunks/mix_raw.wav', 'out/chunks/audio.wav'):
+        if os.path.exists(old):
+            os.remove(old)
+    audio_err = []
+
     def audio():
-        run([PY_AUDIO, f'{LIB}/mix.py'])  # mix.py reads/writes relative to the project dir (cwd)
-        run(['ffmpeg', '-v', 'error', '-y', '-i', 'out/chunks/mix_raw.wav', '-af',
-             'alimiter=limit=0.89:level=false,loudnorm=I=-14:TP=-1.0:LRA=11', '-ar', '48000', 'out/chunks/audio.wav'])
+        try:
+            run([PY_AUDIO, f'{LIB}/mix.py'])  # mix.py reads/writes relative to the project dir (cwd)
+            run(['ffmpeg', '-v', 'error', '-y', '-i', 'out/chunks/mix_raw.wav', '-af',
+                 'alimiter=limit=0.89:level=false,loudnorm=I=-14:TP=-1.0:LRA=11', '-ar', '48000', 'out/chunks/audio.wav'])
+        except SystemExit as e:  # sys.exit inside a thread is silent; hand the message to the main thread
+            audio_err.append(str(e.code))
     at = threading.Thread(target=audio)
     at.start()
 
@@ -209,6 +218,8 @@ def main():
             print(' ', msg, flush=True)
     print(f'video segments {time.time() - tv:.0f}s')
     at.join()
+    if audio_err:
+        sys.exit('audio step failed:\n' + audio_err[0])
 
     with open(f'{CACHE}/concat.txt', 'w') as f:
         f.writelines(f"file '{os.path.abspath(p)}'\n" for p in files)

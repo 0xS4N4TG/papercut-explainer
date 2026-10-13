@@ -213,7 +213,7 @@ Projects keep a snapshot of the kit in `src/lib/`, so an old episode renders the
 |---|---|
 | OS | macOS (tested) or Linux (scripts are bash; not run end to end). Windows: use WSL. |
 | Node, npm | Node 20+ |
-| ffmpeg | on `PATH` |
+| ffmpeg | 4.4+ on `PATH` |
 | rubberband | only if you set a voice `tempo` other than 1.0 (`brew install rubberband`) |
 | rsync | on `PATH` (kit sync) |
 | Python | 3.9+ for the tools; 3.10–3.12 for the voice venv (the installer uses `uv` if you have it, else `python3.12`/`3.11`/`3.10`) |

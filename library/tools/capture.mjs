@@ -33,7 +33,7 @@ const chromePath = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Co
   '/Applications/Chromium.app/Contents/MacOS/Chromium', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => p && existsSync(p));
 if (!chromePath) { console.error('No Chrome/Chromium found: set CHROME_PATH to the browser binary'); process.exit(1); }
-const browser = await puppeteer.launch({executablePath: chromePath, headless: true, args: ['--hide-scrollbars']});
+const browser = await puppeteer.launch({executablePath: chromePath, headless: true, args: process.getuid?.() === 0 ? ['--hide-scrollbars', '--no-sandbox'] : ['--hide-scrollbars']});
 try {
   const page = await browser.newPage();
   await page.setViewport({width: W, height: H, deviceScaleFactor: scale});
