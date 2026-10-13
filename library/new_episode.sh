@@ -16,15 +16,18 @@ if [ $# -lt 3 ]; then echo "usage: $0 <series dir> <NN-slug> <CompositionId> [ou
 L=$(dirname "$(rp "${BASH_SOURCE[0]}")")
 CH=$(rp "$1"); SLUG=$2; COMP=$3; OUTN=${4:-${SLUG#*-}-papercut}
 E=$CH/episodes/$SLUG; P=$E/papercut
-if [ -e "$P/package.json" ]; then echo "already scaffolded: $P" >&2; exit 1; fi
+# SYNCED.txt is written last (by sync_kit.sh), so a run that died halfway can be repeated
+if [ -e "$P/src/lib/SYNCED.txt" ]; then echo "already scaffolded: $P" >&2; exit 1; fi
 mkdir -p "$E/research" "$E/narration/voice" "$P"
-cp -cRn "$L/papercut/template/." "$P/" 2>/dev/null || cp -Rn "$L/papercut/template/." "$P/"
+rsync -a --ignore-existing "$L/papercut/template/" "$P/"   # never overwrites; rsync is a required dependency
 
 DONOR=${DONOR:-}
 if [ -z "$DONOR" ]; then
   DONOR=$(ls -td "$CH"/episodes/*/papercut/node_modules 2>/dev/null | head -1 || true)
 fi
-if [ -n "$DONOR" ] && [ -d "$DONOR" ]; then
+if [ -d "$P/node_modules" ]; then
+  :   # left by an earlier run that stopped after the install
+elif [ -n "$DONOR" ] && [ -d "$DONOR" ]; then
   cp -cR "$DONOR" "$P/node_modules" 2>/dev/null || { rm -rf "$P/node_modules"; cp -R "$DONOR" "$P/node_modules"; }
 else
   (cd "$P" && npm i --no-audit --no-fund)
@@ -40,7 +43,7 @@ python3 - "$P/episode.json" "$COMP" "$OUTN" <<'PY'
 import json, sys
 p, comp, out = sys.argv[1:]; e = json.load(open(p)); e["comp"], e["out"] = comp, out; json.dump(e, open(p, "w"), indent=1)
 PY
-cp -n "$L/voice/build_timing.py" "$E/narration/"
+[ -e "$E/narration/build_timing.py" ] || cp "$L/voice/build_timing.py" "$E/narration/"
 [ -e "$E/narration/script.json" ] || echo "[]" > "$E/narration/script.json"
 echo "new episode: $E  (comp $COMP -> out/$OUTN.mp4)"
 echo "next: research/facts.md -> narration/script.json -> voice/narrate.sh -> voice/finalize.sh -> episode.json scenes+banners -> papercut/stubs.py -> tools/build_vo.py"

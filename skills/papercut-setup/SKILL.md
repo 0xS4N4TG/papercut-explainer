@@ -1,6 +1,6 @@
 ---
 name: papercut-setup
-description: Install, check or upgrade the papercut toolchain. Runs the doctor, asks how much to set up (Minimal, Standard, Full), then runs install.sh with flags and fixes dependency errors. Use for "check my papercut install", "set up the voice", "why won't it render".
+description: Install, check or upgrade the papercut toolchain. Runs the doctor, asks how much to set up (Minimal, Standard, Full), then runs install.sh with flags and fixes dependency errors. Use for "set up papercut-explainer", "install papercut", "check my papercut install", "set up the voice", "why won't it render".
 ---
 
 # Papercut setup
@@ -51,8 +51,8 @@ Confirm before any multi-GB download. On a machine with no GPU (not Apple Silico
 
 - Add `--dry-run` first if the user wants to see the plan; it changes nothing.
 - Standard and Full take minutes (npm install, Remotion's Chrome, venvs, model download). Run them in the background and check the output; do not hold a foreground call.
-- What each mode does: Minimal links the skills and the scene-builder agent. Standard adds a dependency check, the Remotion agent skills (`npx skills add remotion-dev/skills -g`), a Python venv with numpy, Pillow and soundfile, and a self-test render. Full adds `library/voice/setup_tts.sh`: a voice venv with Qwen3-TTS, an ASR backend (mlx-whisper on Apple Silicon, faster-whisper elsewhere), the model download and a one-line smoke test.
-- The installer writes `PAPERCUT_HOME`, `PAPERCUT_LIB`, `PAPERCUT_PY`, `QWEN_TTS_PY` and `ASR_PY` into `~/.config/papercut-explainer/config.env`. An existing skill folder is backed up as `<name>.bak-<timestamp>`.
+- What each mode does: Minimal links the skills and the scene-builder agent. Standard adds a dependency check, the Remotion agent skills (`npx skills add remotion-dev/skills -g -a claude-code`, installed user-wide, so say so when you confirm the plan), a Python venv with numpy, Pillow and soundfile, and a self-test render. Full adds `library/voice/setup_tts.sh`: a voice venv with Qwen3-TTS, an ASR backend (mlx-whisper on Apple Silicon, faster-whisper elsewhere), the model download and a one-line smoke test.
+- The installer writes `PAPERCUT_HOME`, `PAPERCUT_LIB`, `PAPERCUT_PY`, `QWEN_TTS_PY` and `ASR_PY` into `~/.config/papercut-explainer/config.env`. An existing skill folder that differs from this checkout is backed up to `~/.config/papercut-explainer/backups/` (not into the skills folder, so it is not loaded twice); an identical copy, such as one from `npx skills add`, is just replaced.
 
 ## 4. Verify and report
 

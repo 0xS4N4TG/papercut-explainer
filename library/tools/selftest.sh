@@ -6,7 +6,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/../env.sh"
-KEEP=1; W="${1:-}"; if [ -z "$W" ]; then W="$(mktemp -d)"; KEEP=0; fi
+KEEP=1; W="${1:-}"; if [ -z "$W" ]; then W="$(mktemp -d)"; KEEP=0; trap 'rm -rf "$W"' EXIT; fi   # temp dir goes away on failure too
 say() { printf '  selftest: %s\n' "$*"; }
 EX="$PAPERCUT_LIB/../examples/hello-reel"
 
@@ -39,4 +39,4 @@ say "render one still"
 ( cd "$P" && npx remotion still Example out/selftest.png --frame=40 --log=error )
 [ "$(wc -c < "$P/out/selftest.png")" -gt 50000 ] || { echo "selftest: still is empty or tiny" >&2; exit 1; }
 
-if [ "$KEEP" = 1 ]; then say "ok, still at $P/out/selftest.png"; else rm -rf "$W"; say "ok"; fi
+if [ "$KEEP" = 1 ]; then say "ok, still at $P/out/selftest.png"; else say "ok"; fi

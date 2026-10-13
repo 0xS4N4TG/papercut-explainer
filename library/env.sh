@@ -14,12 +14,15 @@ _pc_cfg="${PAPERCUT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/papercut-explainer
 
 if [ -f "$_pc_cfg" ]; then
   while IFS='=' read -r _k _v || [ -n "$_k" ]; do
-    case "$_k" in ''|'#'*) continue ;; esac
-    [ -n "${!_k:-}" ] || export "$_k=$_v"
+    case "$_k" in ''|'#'*|*[!A-Za-z0-9_]*) continue ;; esac
+    eval "_cur=\"\${$_k:-}\""   # indirect lookup that works in bash 3.2 and zsh
+    [ -n "$_cur" ] || export "$_k=$_v"
   done < "$_pc_cfg"
 fi
 
-if [ -z "${PAPERCUT_LIB:-}" ]; then
+# a PAPERCUT_LIB from the config file that no longer exists (moved or deleted checkout) is ignored
+if [ -n "${PAPERCUT_LIB:-}" ] && [ ! -d "$PAPERCUT_LIB" ]; then unset PAPERCUT_LIB; fi
+if [ -z "${PAPERCUT_LIB:-}" ] && [ -n "${BASH_SOURCE[0]:-}" ]; then
   PAPERCUT_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 export PAPERCUT_LIB

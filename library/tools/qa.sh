@@ -9,6 +9,7 @@ rp() { python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$1"; }
 
 LIB=$(dirname "$(rp "${BASH_SOURCE[0]}")")
 NAME=${1:?usage: qa.sh NAME [FROM-TO] [NTH=12] [SCALE=0.3] [COLS=9]}
+case "$NAME" in */*|.*) echo "qa.sh: NAME must be a plain folder name, got '$NAME'" >&2; exit 2 ;; esac
 RANGE=${2:-}; NTH=${3:-12}; SCALE=${4:-0.3}; COLS=${5:-9}
 if [ -f "$LIB/../env.sh" ]; then . "$LIB/../env.sh"; fi   # fills PAPERCUT_PY from the config file, if any
 PY=${PAPERCUT_PY:-python3}

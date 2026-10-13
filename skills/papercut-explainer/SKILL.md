@@ -84,10 +84,10 @@ Reuse before writing: a kit component, a props set or a scene template beats new
 Probe (read-only):
 
 ```
-grep '^PAPERCUT_' "${XDG_CONFIG_HOME:-$HOME/.config}/papercut-explainer/config.env"
+. "$(grep '^PAPERCUT_LIB=' "${XDG_CONFIG_HOME:-$HOME/.config}/papercut-explainer/config.env" | cut -d= -f2-)/env.sh"   # fills PAPERCUT_PY, QWEN_TTS_PY
 node -v; ffmpeg -version | head -1
-"${PAPERCUT_PY:-python3}" -c 'import numpy, PIL, soundfile'
-"${QWEN_TTS_PY:-python3}" -c 'import qwen_tts'
+"$PAPERCUT_PY" -c 'import numpy, PIL, soundfile'
+"$QWEN_TTS_PY" -c 'import qwen_tts'
 ```
 
 The first three lines passing means Standard. The `qwen_tts` import passing as well means Full. If a stage needs more than the install provides, say so in one line, run `./install.sh --doctor` from the repo root, and hand over to `papercut-setup` instead of improvising. Find the root with `readlink` on the installed skill folder, or `PAPERCUT_HOME` in the config file.

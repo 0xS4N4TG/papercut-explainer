@@ -16,7 +16,7 @@
 # Options
 #   --mode M              minimal | standard | full | custom
 #   --components a,b,c    with --mode custom: skills,deps,remotion-skills,pytools,tts,verify
-#   --skills-dir DIR      where skills go (default ~/.claude/skills)
+#   --skills-dir DIR      where skills go (default ~/.claude/skills); the subagent goes in the sibling folder DIR/../agents
 #   --project DIR         install skills into DIR/.claude/skills instead (one project only)
 #   --copy                copy the skills instead of symlinking them (no live updates from this checkout)
 #   --tts-model 1.7B|0.6B model size for the voice step (default 1.7B)
@@ -31,23 +31,25 @@ CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/papercut-explainer"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/papercut-explainer"
 export PAPERCUT_CONFIG="$CFG_DIR/config.env"
 . "$LIB/env.sh"
+export PAPERCUT_LIB="$LIB"   # this checkout wins over a stale path left in an older config file
 
 MODE=""; COMPONENTS=""; SKILLS_DIR="$HOME/.claude/skills"; COPY=0; YES=0; DRY=0
 TTS_MODEL=1.7B; WITH_CLONE=0; DOCTOR=0; UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --mode) MODE=$2; shift 2 ;;
-    --components) COMPONENTS=$2; shift 2 ;;
-    --skills-dir) SKILLS_DIR=$2; shift 2 ;;
-    --project) SKILLS_DIR="$(cd "$2" && pwd)/.claude/skills"; shift 2 ;;
+    --mode) MODE=${2:?--mode needs a value}; shift 2 ;;
+    --components) COMPONENTS=${2:?--components needs a value}; shift 2 ;;
+    --skills-dir) SKILLS_DIR=${2:?--skills-dir needs a value}; shift 2 ;;
+    --project) [ -d "${2:?--project needs a folder}" ] || { echo "--project: $2 is not a folder" >&2; exit 2; }
+               SKILLS_DIR="$(cd "$2" && pwd)/.claude/skills"; shift 2 ;;
     --copy) COPY=1; shift ;;
-    --tts-model) TTS_MODEL=$2; shift 2 ;;
+    --tts-model) TTS_MODEL=${2:?--tts-model needs 1.7B or 0.6B}; shift 2 ;;
     --with-clone) WITH_CLONE=1; shift ;;
     --yes|-y) YES=1; shift ;;
     --dry-run) DRY=1; shift ;;
     --doctor) DOCTOR=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 0 ;;
     *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -198,14 +200,17 @@ step_config() {
 step_skills() {
   say "skills -> $SKILLS_DIR"
   run mkdir -p "$SKILLS_DIR" "$CFG_DIR"
-  local ts; ts="$(date +%Y%m%d-%H%M%S)"
+  local ts bak; ts="$(date +%Y%m%d-%H%M%S)"; bak="$CFG_DIR/backups"
   for s in $(SKILL_NAMES); do
     local src="$ROOT/skills/$s" dst="$SKILLS_DIR/$s"
     if [ -L "$dst" ]; then
       run rm "$dst"
     elif [ -e "$dst" ]; then
-      if confirm "$dst exists and is not a link from this installer. Back it up and replace?" y; then
-        run mv "$dst" "$dst.bak-$ts"; miss "backed up to $dst.bak-$ts"
+      if [ -f "$dst/.papercut-installed" ] || diff -rq "$src" "$dst" >/dev/null 2>&1; then
+        run rm -rf "$dst"   # an earlier --copy install or an identical copy (npx skills add): refresh it
+      elif confirm "$dst exists and differs from this checkout. Back it up and replace?" y; then
+        # backups live outside the skills folder, so Claude Code does not load them as duplicate skills
+        run mkdir -p "$bak"; run mv "$dst" "$bak/$s.$ts"; miss "backed up to $bak/$s.$ts"
       else miss "kept existing $s"; continue; fi
     fi
     if [ "$COPY" = 1 ]; then run cp -R "$src" "$dst"; [ "$DRY" = 1 ] || touch "$dst/.papercut-installed"; else run ln -s "$src" "$dst"; fi
@@ -218,13 +223,18 @@ step_skills() {
   for a in "$ROOT"/agents/*.md; do
     [ -f "$a" ] || continue
     local adst="$adir/$(basename "$a")"
-    if [ -e "$adst" ] && [ ! -L "$adst" ]; then miss "kept existing agent $(basename "$a")"; continue; fi
-    [ -L "$adst" ] && run rm "$adst"
+    if [ -L "$adst" ]; then run rm "$adst"
+    elif [ -e "$adst" ]; then
+      if cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
+      elif confirm "$adst exists and differs from this checkout. Back it up and replace?" y; then
+        run mkdir -p "$CFG_DIR/backups"; run mv "$adst" "$CFG_DIR/backups/$(basename "$a" .md).$ts.md"; miss "backed up to $CFG_DIR/backups"
+      else miss "kept existing agent $(basename "$a")"; continue; fi
+    fi
     if [ "$COPY" = 1 ]; then run cp "$a" "$adst"; else run ln -s "$a" "$adst"; fi
     [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
     ok "agent $(basename "$a" .md)"
   done
-  [ "$DRY" = 1 ] || { sort -u "$CFG_DIR/installed.txt" -o "$CFG_DIR/installed.txt"; }
+  [ "$DRY" = 1 ] || [ ! -f "$CFG_DIR/installed.txt" ] || sort -u "$CFG_DIR/installed.txt" -o "$CFG_DIR/installed.txt"
 }
 
 step_deps() {
@@ -246,7 +256,7 @@ step_remotion() {
   say "Remotion agent skills"
   if [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ]; then ok "already installed"; return; fi
   command -v npx >/dev/null 2>&1 || { note_fail remotion-skills "npx not found"; return 1; }
-  run npx -y skills@latest add remotion-dev/skills -g -y || note_fail remotion-skills "npx skills add failed; run it by hand"
+  run npx -y skills@latest add remotion-dev/skills -g -y -a claude-code || note_fail remotion-skills "npx skills add failed; run it by hand"
 }
 
 step_pytools() {
@@ -254,7 +264,9 @@ step_pytools() {
   local V="$DATA_DIR/tools-venv"
   command -v python3 >/dev/null 2>&1 || { note_fail pytools "python3 missing"; return 1; }
   run mkdir -p "$DATA_DIR"
-  [ -x "$V/bin/python" ] || run python3 -m venv "$V"
+  if [ ! -x "$V/bin/python" ]; then
+    run python3 -m venv "$V" || { rm -rf "$V"; note_fail pytools "could not create a venv (on Debian/Ubuntu: apt install python3-venv, then rerun with --mode custom --components pytools,verify)"; return 1; }
+  fi
   run "$V/bin/python" -m pip install -q -U pip numpy pillow soundfile || { note_fail pytools "pip install failed"; return 1; }
   [ "$DRY" = 1 ] || papercut_config_set PAPERCUT_PY "$V/bin/python"
   ok "PAPERCUT_PY=$V/bin/python"
@@ -283,7 +295,7 @@ if [ $C_DEPS = 1 ]; then step_deps || C_VERIFY=0; fi
 # ---------------------------------------------------------------- summary
 echo
 say "Done ($MODE)"
-[ -n "$FAILED" ] && bad "needs attention:$FAILED"
+if [ -n "$FAILED" ]; then bad "needs attention:$FAILED"; echo "After fixing, rerun the failed part with --mode custom --components <names>, or check everything with ./install.sh --doctor."; exit 1; fi
 cat <<EOF
 
 Next: open Claude Code and say
@@ -292,4 +304,3 @@ or run one stage on its own: "write a hook for ...", "storyboard this script", "
 
 Check the setup any time: ./install.sh --doctor
 EOF
-[ -z "$FAILED" ]

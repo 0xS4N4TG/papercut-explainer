@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 # Render code-drawn library backdrops to out/backdrops/<name>.jpg (1080x1920, q92). usage: ./render_backdrops.sh [name ...]
 set -e
 cd ${0:A:h}

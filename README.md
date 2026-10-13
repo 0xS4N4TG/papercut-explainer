@@ -28,7 +28,7 @@ You describe the video ("explain this repo in 25 seconds"). The skills research 
 | Cuts | `whip`, `zoomThrough`, `pageTurn`, `tearAway`, `tapePull`, `stampCut`, `infiniteZoom`, `popUpBook`, `keyhole`, `burnAway`, chained with `CutSeries` |
 | Film look | gate weave and flicker, moving felt fibre, lens dirt, lamp flicker, halftone, graph paper |
 | Overlays | taped headline banner, word-by-word torn caption tags, hook title, real-screenshot proof card with marker circles |
-| Kit | 212 exports in `library/papercut/kit`: paper primitives (`Paper`, `Slab`, `Disc`, `Pill`, `Card`), a base critter with accessories, prop sets, rough UI rebuilds, a comment-keyword CTA scene |
+| Kit | 188 exports in `library/papercut/kit`: paper primitives (`Paper`, `Slab`, `Disc`, `Pill`, `Card`), a base critter with accessories, prop sets, rough UI rebuilds, a comment-keyword CTA scene |
 | Sound | 79 synthesised SFX and 8 music beds, picked by name, rendered with Web Audio (no audio files to license) |
 | Tools | scaffold, cue sheets, cached renders, QA contact sheets, catalog generator, placeholder narration, optional local TTS setup |
 
@@ -79,7 +79,7 @@ Non-interactive and scoped installs:
 ./install.sh --uninstall                                 # remove the links it made
 ```
 
-By default skills are symlinked into `~/.claude/skills` and the subagent into `~/.claude/agents`, so a `git pull` updates them. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), asks before replacing an existing skill folder, and does not touch your shell profile.
+By default skills are symlinked into `~/.claude/skills` and the subagent into `~/.claude/agents`, so a `git pull` updates them. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), replaces an identical existing skill folder (such as one from `npx skills add`) and moves a different one to `~/.config/papercut-explainer/backups/` instead of the skills folder, and does not touch your shell profile.
 
 Prefer to let Claude do it? Open Claude Code in this folder and say **"set up papercut-explainer"**. The `papercut-setup` skill asks which mode you want, confirms any large download, runs the installer with the right flags and checks the result.
 
@@ -214,6 +214,7 @@ Projects keep a snapshot of the kit in `src/lib/`, so an old episode renders the
 | OS | macOS (tested) or Linux (scripts are bash; not run end to end). Windows: use WSL. |
 | Node, npm | Node 20+ |
 | ffmpeg | on `PATH` |
+| rubberband | only if you set a voice `tempo` other than 1.0 (`brew install rubberband`) |
 | rsync | on `PATH` (kit sync) |
 | Python | 3.9+ for the tools; 3.10–3.12 for the voice venv (the installer uses `uv` if you have it, else `python3.12`/`3.11`/`3.10`) |
 | Chrome or Chromium | for the SFX and music render only (`CHROME_PATH` to override). Video renders use Remotion's own headless browser, downloaded on first render. |

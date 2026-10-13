@@ -72,6 +72,6 @@ if os.path.exists(bdj):
             "Optional `tint` (multiply colour) and `dim` (0-1 darkening) shift a set's mood. No people or text are baked in.", "",
             "| name | floorY | mood | desc | bestFor |", "|---|---|---|---|---|"]
     for b in bd: out.append(f"| `{b['name']}` | {b['floorY']} | {b['mood']} | {b['desc']} | {b['bestFor']} |")
-    out.append(""); count += len(bd)
+    out.append("")
 open(f"{LIB}/papercut/CATALOG.md", "w", encoding="utf-8").write("\n".join(out) + "\n")
 print("papercut:", count, "exports")
