@@ -1,0 +1,52 @@
+{
+ "comp": "EcholarkHeist",
+ "out": "echolark-heist-papercut",
+ "bed": "marimba-heist-Dm-112",
+ "narration": "../narration",
+ "timing": "timing_narrator.js",
+ "fps": 30,
+ "start": 0.2,
+ "gap": 0.22,
+ "gaps": {"l7_peak": 0.1, "l8_catch": 0.1},
+ "hold": 1.2,
+ "whipScene": "S08Peak",
+ "hook": {"lines": [["$180"], ["PER", "YEAR"]], "hot": ["$180"], "hold": 2.6},
+ "scenes": [
+  ["S01Hook", "l1_hook", 0],
+  ["S02Proof", "l2_proof", 0],
+  ["S03Rent", "l3_reframe", 0],
+  ["S04Laptop", "l3_reframe", "run"],
+  ["S05Name", "l4_name", 0],
+  ["S06Demo", "l5_demo", "and"],
+  ["S07Stack", "l6_stack", 0],
+  ["S08Peak", "l7_peak", 0],
+  ["S09Slow", "l8_catch", 0],
+  ["S10Mark", "l8_catch", "and"],
+  ["S11Payoff", "l9_payoff", 0],
+  ["S12Guide", "l10_cta", 0],
+  ["S13Cta", "l10_cta", "For"]
+ ],
+ "banners": {
+  "S01Hook": "VOCALYST'S FREE PLAN CAN'T CLONE",
+  "S02Proof": "ONE DEV WROTE ALMOST ALL OF IT",
+  "S03Rent": "A DESKTOP APP, NOT A WEBSITE",
+  "S04Laptop": "NO GRAPHICS CARD NEEDED",
+  "S05Name": "IT ASKS FOR 5-15 CLEAN SECONDS",
+  "S06Demo": "PASTE, TYPE OR IMPORT ANY SCRIPT",
+  "S07Stack": "IT LABELS WHO SAID WHAT",
+  "S08Peak": "VOCALYST'S DUBBING: 40+ LANGUAGES",
+  "S09Slow": "A 10-MINUTE DUB TAKES ABOUT AN HOUR",
+  "S10Mark": "DOCS: YOU CAN'T HEAR THE WATERMARK",
+  "S11Payoff": "NO ACCOUNTS, NO CLOUD, NO API KEYS",
+  "S12Guide": "ONE GUIDE FOR MAC, WINDOWS, LINUX",
+  "S13Cta": "COMMENT VOICE FOR THE SETUP"
+ },
+ "cuts": {
+  "S02Proof": {"kind": "zoomThrough", "x": 190, "y": 900},
+  "S08Peak": {"kind": "whip"},
+  "S10Mark": {"kind": "stampCut"},
+  "S11Payoff": {"kind": "tearAway"},
+  "S13Cta": {"kind": "tapePull", "label": "FREE"}
+ },
+ "cutSfx": {"*": "cut", "S02Proof": "zoom", "S08Peak": "whip", "S10Mark": "stamp", "S11Payoff": "rip", "S13Cta": "tape-peel"}
+}

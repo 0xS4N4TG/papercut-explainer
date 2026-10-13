@@ -1,0 +1,48 @@
+{
+ "comp": "Example",
+ "out": "example-papercut",
+ "bed": "marimba-Am-120",
+ "narration": "../narration",
+ "timing": "timing_narrator.js",
+ "fps": 30,
+ "start": 0.2,
+ "gap": 0.22,
+ "hold": 1.2,
+ "whipScene": "",
+ "hook": {
+  "lines": [
+   [
+    "ALL",
+    "CUT"
+   ],
+   [
+    "PAPER"
+   ]
+  ],
+  "hot": [
+   "PAPER"
+  ],
+  "hold": 1.6
+ },
+ "scenes": [
+  [
+   "S01Hello",
+   "l1_hook",
+   0
+  ],
+  [
+   "S02Cta",
+   "l2_cta",
+   0
+  ]
+ ],
+ "banners": {
+  "S01Hello": "EVERY PROP IS PAPER",
+  "S02Cta": "FREE AND OPEN SOURCE"
+ },
+ "cuts": {
+  "S02Cta": {
+   "kind": "tapePull"
+  }
+ }
+}

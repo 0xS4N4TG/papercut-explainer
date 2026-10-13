@@ -1,0 +1,4 @@
+{"desc": "Sneaky heist marimba, i–VI–iv–V (Dm–Bb–Gm–A, the major V keeps it tense), 112 bpm, finger snaps on 2 and 4, no sparkle.", "mood": "sneaky, heist, tense",
+ "bpm": 112, "instrument": "marimba", "prog": [[38, [62, 65, 69, 74]], [46, [62, 65, 70, 74]], [43, [62, 67, 70, 74]], [45, [61, 64, 69, 73]]],
+ "pattern": [0, 1, 2, 1, 3, 2, 1, 2], "skip": [[5, 2, 1]], "sub": [[0, 1.6, 0.45], [2, 1.6, 0.35]], "sparkleEvery4th": false,
+ "perc": "snap", "percGain": 0.14, "outro": [62, 65, 69, 74, 77]}

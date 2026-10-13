@@ -1,0 +1,12 @@
+[
+  {"id": "l1_hook", "text": "Vocalyst charges $15 a month to clone your voice.", "tts": "Vocalyst charges fifteen dollars a month to clone your voice."},
+  {"id": "l2_proof", "text": "A free version just hit 12,000 stars.", "tts": "A free version just hit twelve thousand stars."},
+  {"id": "l3_reframe", "text": "So instead of renting your voice, run it on an old laptop."},
+  {"id": "l4_name", "text": "It's called Echolark."},
+  {"id": "l5_demo", "text": "One clip of you, and it reads anything in your voice."},
+  {"id": "l6_stack", "text": "It also reads books aloud, types for you, and transcribes audio."},
+  {"id": "l7_peak", "text": "And get this: it dubs videos into 210 languages.", "tts": "And get this: it dubs videos into two hundred ten languages."},
+  {"id": "l8_catch", "text": "But it's slower on old laptops, and clips carry a watermark."},
+  {"id": "l9_payoff", "text": "Which means you can cancel Vocalyst, and nothing gets uploaded."},
+  {"id": "l10_cta", "text": "Good thing I made a guide. For the link, comment VOICE."}
+]

@@ -1,0 +1,4 @@
+{"desc": "Cheeky minor marimba, i–VI–III–VII (Am–F–C–G), 120 bpm, claps on 2 and 4.", "mood": "cheeky, tense-fun",
+ "bpm": 120, "instrument": "marimba", "prog": [[45, [64, 69, 72, 76]], [41, [65, 69, 72, 77]], [48, [64, 67, 72, 76]], [43, [62, 67, 71, 74]]],
+ "pattern": [0, 1, 2, 1, 3, 2, 1, 2], "skip": [[5, 2, 1]], "sub": [[0, 1.6, 0.45], [2, 1.6, 0.35]], "sparkleEvery4th": true,
+ "perc": "clap", "percGain": 0.16, "outro": [69, 72, 76, 81, 84]}

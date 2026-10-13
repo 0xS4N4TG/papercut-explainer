@@ -1,0 +1,4 @@
+{"desc": "Bright marimba pop, I–V–vi–IV in F, 108 bpm, no claps.", "mood": "curious, light",
+ "bpm": 108, "instrument": "marimba", "prog": [[41, [65, 69, 72, 77]], [36, [60, 64, 67, 72]], [38, [62, 65, 69, 74]], [34, [58, 62, 65, 70]]],
+ "pattern": [0, 2, 1, 3, 2, 1, 3, 0], "skip": [[5, 2, 1]], "sub": [[0, 1.6, 0.45], [2, 1.6, 0.35]], "sparkleEvery4th": true,
+ "tailSec": 1.4, "outro": [65, 69, 72, 77, 81]}

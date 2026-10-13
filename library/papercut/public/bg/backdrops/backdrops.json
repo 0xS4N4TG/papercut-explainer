@@ -1,0 +1,170 @@
+[
+ {
+  "name": "gamer-bedroom",
+  "floorY": 1379,
+  "mood": "night",
+  "desc": "Dim gamer bedroom in charcoal-plum with purple and teal RGB strips along the ceiling and wall base, a black gaming desk with PC tower at the left edge, a blank abstract poster and a teal bean bag at the right.",
+  "bestFor": "gaming, PC builds, GPU and local-model topics, streaming and dev-at-night beats"
+ },
+ {
+  "name": "server-room",
+  "floorY": 1435,
+  "mood": "cool",
+  "desc": "Dark blue-green data centre: tall black server racks with cool teal LED dots frame both edges, smaller dim racks recede in the centre, raised grey floor tiles.",
+  "bestFor": "servers, cloud, hosting, databases, self-hosting, infrastructure and uptime beats"
+ },
+ {
+  "name": "home-office-day",
+  "floorY": 1432,
+  "mood": "day",
+  "desc": "Bright sunny home office in butter yellow: window with daylight and clouds at the left, house plants in terracotta pots, light honey-wood floor, plain sunny wall.",
+  "bestFor": "work-from-home, solo dev, productivity, daytime setup and calm explainer beats"
+ },
+ {
+  "name": "cafe",
+  "floorY": 1481,
+  "mood": "warm",
+  "desc": "Warm terracotta coffee shop: wooden counter at the left with espresso machine, cups and cake dome, pendant lamps with glowing bulbs, a blank green chalkboard menu, tan wood floor.",
+  "bestFor": "freelance and work-anywhere beats, coffee-break asides, meeting and chat scenes, casual hooks"
+ },
+ {
+  "name": "startup-office",
+  "floorY": 1289,
+  "mood": "day",
+  "desc": "Open-plan startup office in soft grey-blue: tall glass wall with daylight and city hint at the right, pale desks with monitors and chairs, plants and a beanbag at the edges, plain pale carpet. The wall/floor line sits high, carpet below is open floor.",
+  "bestFor": "teams, hiring, product launches, company and startup beats, management and workflow topics"
+ },
+ {
+  "name": "rooftop-day",
+  "floorY": 1501,
+  "mood": "day",
+  "desc": "Sunny city rooftop: blue sky with paper clouds, layered blue-grey and dusty-pink skyline behind a low ledge, wooden water tank at the left, vent pipe and plant at the right, warm grey concrete floor.",
+  "bestFor": "big-picture or outlook beats, launches, 'above the noise' moments, open-air hooks and endings"
+ },
+ {
+  "name": "city-street-night",
+  "floorY": 1430,
+  "mood": "night",
+  "desc": "Night street in dark teal-slate: brick shop fronts with glowing blank amber windows and striped awnings at both edges, iron streetlamp at the right, mailbox at the left, wet pavement with warm reflections.",
+  "bestFor": "going out into the world, late-night stories, security and surveillance beats, shipping and delivery beats"
+ },
+ {
+  "name": "garage-workshop",
+  "floorY": 1452,
+  "mood": "warm",
+  "desc": "Cosy garage workshop: big light-brown pegboard with hanging hand tools at its edges, workbench with vice and toolbox at the right, warm hanging bulb, cardboard boxes at the left, grey concrete floor.",
+  "bestFor": "DIY, hacking and tinkering, hardware builds, prototypes, repair and open-source maker beats"
+ },
+ {
+  "name": "library",
+  "floorY": 1414,
+  "mood": "warm",
+  "desc": "Warm library in burgundy: tall wooden bookshelves full of blank spines at both edges, arched wall panel in the centre, brass reading lamp with a warm glow and side table at the right, armchair at the left, dark wood floor.",
+  "bestFor": "docs, reading, research, learning, knowledge bases, RAG and memory topics"
+ },
+ {
+  "name": "classroom",
+  "floorY": 1519,
+  "mood": "day",
+  "desc": "Daylight classroom in cream: large blank green chalkboard with wooden frame, tall windows at the right, plants on shelves at the left, wooden student desks at the bottom corners, light wood floor. The floor line sits low.",
+  "bestFor": "teaching, tutorials, how-it-works explainers, courses, quizzes and step-by-step beats"
+ },
+ {
+  "name": "lab",
+  "floorY": 1469,
+  "mood": "cool",
+  "desc": "Clean mint-and-white science lab: mint tile wall, benches with drawers at both edges holding flasks, beakers, test tubes and a microscope, wall shelves of jars, pale tile floor.",
+  "bestFor": "experiments, benchmarks, evals, research results, science and testing beats"
+ },
+ {
+  "name": "stage-spotlight",
+  "floorY": 1438,
+  "mood": "warm",
+  "desc": "Empty theatre stage: burgundy velvet curtains with a swagged valance at the edges, dark plum back wall, soft warm spotlight cone and light pool on wooden plank floor.",
+  "bestFor": "big reveals, announcements, 'meet X' intros, awards and finale beats"
+ },
+ {
+  "name": "kitchen",
+  "floorY": 1530,
+  "mood": "day",
+  "desc": "Cheerful home kitchen in pale sage and cream: tiled backsplash, sage lower cabinets with butcher-block counter, pots, kettle and utensils at the left, plant and bread bin at the right, morning window light, terracotta floor.",
+  "bestFor": "recipes and cooking metaphors, ingredients and steps, morning routine, 'cooking up' build beats"
+ },
+ {
+  "name": "park-day",
+  "floorY": 1419,
+  "mood": "day",
+  "desc": "Sunny park: pale blue sky, layered green hills, big round-canopy paper trees at both edges, sandy path across the floor line, green bench at the right, grass below.",
+  "bestFor": "outdoor and breather beats, walks, nature or growth metaphors, calm intros and outros"
+ },
+ {
+  "name": "art-gallery",
+  "floorY": 1420,
+  "mood": "day",
+  "desc": "Bright contemporary art gallery in warm off-white paper: pale skylight band with mullions across the top, a row of small brass picture lamps along the upper wall, honey-wood plank floor getting darker toward the bottom. Clean plain wall and floor (no hooks, no stanchions: draw VelvetRope and frames in the scene). Code-drawn papercut (made without imagegen).",
+  "bestFor": "galleries, exhibitions, public display and show-and-tell beats, 'on show' or museum metaphors, openings, tours"
+ },
+ {
+  "name": "gallery-lobby",
+  "floorY": 1420,
+  "mood": "cool",
+  "desc": "Museum lobby in pale grey-green paper marble: tall plain wall in the middle band under a crown cornice, a tall dark wooden door with brass lever handle and kick plate at the right edge (x 716-1096, top y 444), a small reception desk with brass bell at the left edge, a potted fig tree at x 500, speckled terrazzo floor. Code-drawn papercut (made without imagegen).",
+  "bestFor": "entrances, reception and lobby beats, private-wing or locked-door metaphors, institutional and museum beats"
+ },
+ {
+  "name": "courtroom",
+  "floorY": 1450,
+  "mood": "warm",
+  "desc": "Sage striped wall over oak panelling; tall light-oak judge's bench with a tilted gavel at the left edge (x 0-300), spindle-railed witness stand at the right edge (x 810-1080), blank gold seal disc high in the middle (y ~520), honey plank floor. Code-drawn papercut.",
+  "bestFor": "rules, judgments, trials, bans, appeals, legal and policy disputes"
+ },
+ {
+  "name": "bank-vault",
+  "floorY": 1450,
+  "mood": "cool",
+  "desc": "Steel plate wall; huge round vault door with brass spoked wheel at the left edge (x 0-380), safe-deposit box grid at the right edge (x 780-1080), brass-post velvet rope low at the left, polished grey-green tiled floor with a faint reflection. Code-drawn papercut.",
+  "bestFor": "security, money, secrets, access control, leaks, protecting data"
+ },
+ {
+  "name": "warehouse",
+  "floorY": 1450,
+  "mood": "warm",
+  "desc": "Beige wall; orange steel shelving with kraft boxes at both edges (x 0-260, x 820-1080), pallet stack of cartons at the right (x 780-1030), closed roll-up shutter mid-wall (x 290-790), yellow floor stripe at y ~1490, concrete floor, hanging industrial lamp top-left (x 85-270, y < 400). Code-drawn papercut.",
+  "bestFor": "shipping, supply, stock, logistics, storage, bulk and scale"
+ },
+ {
+  "name": "mission-control",
+  "floorY": 1440,
+  "mood": "night",
+  "desc": "Navy panelled wall; console desk with 3 glowing screens, keys and LED dots at left (x 0-330, y 970-1440); wall of 12 teal/blue monitors at right (x 800-1080, y 440-1440); big dark blank central screen on a bracket (x 296-776, y 520-920); dark carpet floor. Code-drawn papercut.",
+  "bestFor": "AI agents, monitoring, dashboards, outages, launches, ops/control rooms, tracking many things at once"
+ },
+ {
+  "name": "airport-gate",
+  "floorY": 1440,
+  "mood": "day",
+  "desc": "Grey-blue wall; big window with pale sky, clouds and a plane tail outside at left (x 0-610, y 470-1320); 3 grey seats at left edge (x 0-300); blank departures-board frame top-right (x 744-1080, y 460-710); gate desk with monitor at right (x 800-1080, y 1000-1440); carpet with pale stripe at y 1478. The window is wide: a mascot in the middle band overlaps plain sky and mullions. Code-drawn papercut.",
+  "bestFor": "travel, waiting, boarding, delays, transitions, departures, queues, leaving or arriving"
+ },
+ {
+  "name": "subway-platform",
+  "floorY": 1440,
+  "mood": "night",
+  "desc": "Teal brick-bond tile wall with a darker band (y 1040-1210); bench at left edge (x 0-290, y 1190-1440); glowing arched tunnel mouth at right (x 750-1080, y 780-1440); two blank sign frames (left y 500, right y 470); yellow safety line at y 1468-1492; concrete floor. Code-drawn papercut.",
+  "bestFor": "commuting, waiting for something to arrive, loops, routes, late-night, going under the radar, trains/transit metaphors"
+ },
+ {
+  "name": "diner",
+  "floorY": 1440,
+  "mood": "warm",
+  "desc": "Mint wall with a long pale window band across y 470-660 (full width), cream wainscot with a red rail below, red-and-cream chequered perspective floor. Counter with two red stools and a glass pie dome at the left (x 0-290); tall red booth with a seat at the right (x 800-1080); blank pink neon arrow at x 830-1010, y 800-900. Code-drawn papercut.",
+  "bestFor": "food, cafe or late-night talk, small-town and retro beats, orders, breakfast, comfort topics"
+ },
+ {
+  "name": "bedroom-day",
+  "floorY": 1450,
+  "mood": "day",
+  "desc": "Lilac wall and light wood floor. Peach bed with a patchwork quilt (x 0-220) and bedside table with a lamp (x 215-315) at the left, blank framed print above at x 80-270, y 720-970; window with peach curtains at the right (x 790-1080, y 615-1190, cropped by the edge); round lilac and peach rug at y 1560-1810. Code-drawn papercut.",
+  "bestFor": "mornings, sleep, wake-up and routine beats, cozy or personal topics, home life, gentle explainers"
+ }
+]

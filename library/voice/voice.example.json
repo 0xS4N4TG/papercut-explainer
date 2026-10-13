@@ -1,0 +1,17 @@
+{
+ "name": "Example narrator",
+ "speaker": "Ryan",
+ "instruct": "friendly, natural, conversational, clear diction, a steady medium pace",
+ "language": "English",
+ "sampling": {
+  "temperature": 0.8,
+  "top_p": 0.9,
+  "max_new_tokens": 1536
+ },
+ "takes_per_line": 3,
+ "tempo": 1.0,
+ "qa_targets": {
+  "median_pitch_hz": [80, 200],
+  "asr_match": 0.9
+ }
+}

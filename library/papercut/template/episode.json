@@ -1,0 +1,14 @@
+{
+ "comp": "Episode",
+ "out": "episode-papercut",
+ "bed": "marimba-Am-120",
+ "narration": "../narration",
+ "timing": "timing_narrator.js",
+ "fps": 30,
+ "start": 0.2,
+ "gap": 0.22,
+ "hold": 2.3,
+ "whipScene": "",
+ "scenes": [],
+ "banners": {}
+}

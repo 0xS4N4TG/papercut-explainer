@@ -1,0 +1,18 @@
+{
+ "name": "Paper Trail narrator (example, invented for illustration)",
+ "speaker": "Ryan",
+ "instruct": "friendly, natural, conversational, like telling a friend; clear pauses between sentences; stress the key word of each line",
+ "language": "English",
+ "sampling": {
+  "temperature": 0.8,
+  "top_p": 0.9,
+  "max_new_tokens": 1536
+ },
+ "takes_per_line": 3,
+ "tempo": 1.0,
+ "qa_targets": {
+  "median_pitch_hz": [80, 200],
+  "asr_match": 0.9
+ },
+ "notes": "Tempo stays 1.0: the 30 s ceiling is met by cutting words, never by speeding the voice. Re-voice by changing speaker (Aiden is the other recommended one) and rerunning narrate.sh, finalize.sh, build_vo.py and timing_md.py."
+}

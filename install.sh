@@ -1,0 +1,295 @@
+#!/usr/bin/env bash
+# papercut-explainer installer. Asks how much you want to set up, then does only that.
+#
+#   ./install.sh                         interactive (asks for a mode)
+#   ./install.sh --mode standard --yes   no questions
+#   ./install.sh --doctor                check what is installed
+#   ./install.sh --uninstall             remove the skill links this script made
+#
+# Modes
+#   minimal   the skills only. Strategy, hook, script, storyboard and style prompts work; nothing renders.
+#   standard  minimal + everything needed to render silent reels: dependency check, Remotion skills,
+#             Python tools (numpy + Pillow + soundfile), a self-test render.
+#   full      standard + local voiceover: Qwen3-TTS venv (~1.5 GB), model download (2.3-4.2 GB), word-timing ASR.
+#   custom    choose each component.
+#
+# Options
+#   --mode M              minimal | standard | full | custom
+#   --components a,b,c    with --mode custom: skills,deps,remotion-skills,pytools,tts,verify
+#   --skills-dir DIR      where skills go (default ~/.claude/skills)
+#   --project DIR         install skills into DIR/.claude/skills instead (one project only)
+#   --copy                copy the skills instead of symlinking them (no live updates from this checkout)
+#   --tts-model 1.7B|0.6B model size for the voice step (default 1.7B)
+#   --with-clone          also download the voice-cloning model
+#   --yes, -y             accept defaults, never prompt
+#   --dry-run             print what would happen, change nothing
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB="$ROOT/library"
+CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/papercut-explainer"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/papercut-explainer"
+export PAPERCUT_CONFIG="$CFG_DIR/config.env"
+. "$LIB/env.sh"
+
+MODE=""; COMPONENTS=""; SKILLS_DIR="$HOME/.claude/skills"; COPY=0; YES=0; DRY=0
+TTS_MODEL=1.7B; WITH_CLONE=0; DOCTOR=0; UNINSTALL=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --mode) MODE=$2; shift 2 ;;
+    --components) COMPONENTS=$2; shift 2 ;;
+    --skills-dir) SKILLS_DIR=$2; shift 2 ;;
+    --project) SKILLS_DIR="$(cd "$2" && pwd)/.claude/skills"; shift 2 ;;
+    --copy) COPY=1; shift ;;
+    --tts-model) TTS_MODEL=$2; shift 2 ;;
+    --with-clone) WITH_CLONE=1; shift ;;
+    --yes|-y) YES=1; shift ;;
+    --dry-run) DRY=1; shift ;;
+    --doctor) DOCTOR=1; shift ;;
+    --uninstall) UNINSTALL=1; shift ;;
+    -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+    *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
+  esac
+done
+
+if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
+say()  { printf '%s==>%s %s\n' "$B" "$N" "$*"; }
+ok()   { printf '  %s[ok]%s %s\n' "$G" "$N" "$*"; }
+miss() { printf '  %s[--]%s %s\n' "$Y" "$N" "$*"; }
+bad()  { printf '  %s[!!]%s %s\n' "$R" "$N" "$*"; }
+run()  { if [ "$DRY" = 1 ]; then printf '  (dry run) %s\n' "$*"; else "$@"; fi; }
+interactive() { [ "$YES" = 0 ] && [ -t 0 ]; }
+confirm() {  # confirm "question" default(y|n)
+  interactive || { [ "$2" = y ]; return; }
+  local hint="[Y/n]"; [ "$2" = n ] && hint="[y/N]"
+  printf '%s %s ' "$1" "$hint"; read -r a
+  case "$(printf '%s' "$a" | tr 'A-Z' 'a-z')" in y|yes) return 0 ;; n|no) return 1 ;; *) [ "$2" = y ] ;; esac
+}
+
+SKILL_NAMES() { for d in "$ROOT"/skills/*/; do [ -f "${d}SKILL.md" ] && basename "$d"; done; }
+ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }   # ver_ge have need
+
+# ---------------------------------------------------------------- doctor
+doctor() {
+  say "papercut-explainer: status"
+  local n=0 t=0 L_SKILLS=0 L_STD=1 L_FULL=0
+  for s in $(SKILL_NAMES); do
+    t=$((t+1))
+    if [ -e "$SKILLS_DIR/$s/SKILL.md" ]; then n=$((n+1)); else miss "skill $s not in $SKILLS_DIR"; fi
+  done
+  if [ "$n" = "$t" ] && [ "$t" -gt 0 ]; then ok "skills: $n/$t in $SKILLS_DIR"; L_SKILLS=1; else bad "skills: $n/$t installed"; fi
+  [ -f "$PAPERCUT_CONFIG" ] && ok "config: $PAPERCUT_CONFIG (PAPERCUT_LIB=$PAPERCUT_LIB)" || miss "config file missing ($PAPERCUT_CONFIG)"
+  if command -v node >/dev/null 2>&1; then v="$(node -v | sed 's/^v//')"; if ver_ge "$v" 20; then ok "node $v"; else bad "node $v (need 20+)"; L_STD=0; fi; else miss "node (need 20+)"; L_STD=0; fi
+  command -v npm >/dev/null 2>&1 && ok "npm" || { miss "npm"; L_STD=0; }
+  command -v ffmpeg >/dev/null 2>&1 && ok "ffmpeg" || { miss "ffmpeg"; L_STD=0; }
+  command -v rsync >/dev/null 2>&1 && ok "rsync" || { miss "rsync"; L_STD=0; }
+  command -v python3 >/dev/null 2>&1 && ok "python3 $(python3 -c 'import platform;print(platform.python_version())')" || { miss "python3"; L_STD=0; }
+  if [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ] || [ -f "$SKILLS_DIR/remotion-best-practices/SKILL.md" ]; then ok "remotion skills"; else miss "remotion skills (npx skills add remotion-dev/skills)"; L_STD=0; fi
+  if "$PAPERCUT_PY" -c 'import numpy, PIL, soundfile' >/dev/null 2>&1; then ok "python tools: numpy + Pillow + soundfile ($PAPERCUT_PY)"; else miss "python tools (numpy + Pillow + soundfile)"; L_STD=0; fi
+  if papercut_find_chrome >/dev/null; then ok "Chrome or Chromium (sound effects and music render)"; else miss "Chrome/Chromium (only the SFX and music render needs it)"; fi
+  if "$QWEN_TTS_PY" -c 'import qwen_tts' >/dev/null 2>&1; then
+    ok "voice: qwen-tts importable ($QWEN_TTS_PY)"
+    if ls -d "$HOME"/.cache/huggingface/hub/models--Qwen--Qwen3-TTS-12Hz-*-CustomVoice >/dev/null 2>&1; then ok "voice: CustomVoice model cached"; L_FULL=1; else miss "voice: no CustomVoice model in the Hugging Face cache"; fi
+  else miss "voice: qwen-tts not installed (optional; ./install.sh --mode custom --components tts)"; fi
+  for f in kit/paper/camera.tsx public/bg/backdrops/backdrops.json public/bg/textures/felt-fibre.mp4; do
+    [ -e "$LIB/papercut/$f" ] && ok "library: $f" || { bad "library file missing: $f"; L_STD=0; }
+  done
+  local level="none (skills not installed)"
+  if [ $L_SKILLS = 1 ]; then level="Minimal"; [ $L_STD = 1 ] && level="Standard" && [ $L_FULL = 1 ] && level="Full"; fi
+  say "Install level: $level"
+}
+
+uninstall() {
+  say "removing skill links made by this installer"
+  local rec="$CFG_DIR/installed.txt"; [ -f "$rec" ] || { echo "nothing recorded in $rec"; return; }
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if [ -L "$p" ]; then
+      case "$(readlink "$p")" in "$ROOT"/*) run rm "$p"; ok "removed $p" ;; *) miss "kept $p (link points elsewhere)" ;; esac
+    elif [ -d "$p" ] && [ -f "$p/.papercut-installed" ]; then run rm -rf "$p"; ok "removed $p"
+    elif [ -f "$p" ] && [ -f "$ROOT/agents/$(basename "$p")" ] && cmp -s "$p" "$ROOT/agents/$(basename "$p")"; then run rm "$p"; ok "removed $p"
+    elif [ -e "$p" ]; then miss "kept $p (not an unmodified copy from this installer)"; fi
+  done < "$rec"
+  run rm -f "$rec"
+  echo "Left in place: $CFG_DIR/config.env, venvs under $DATA_DIR, Hugging Face model cache. Delete them by hand if you want the space back."
+}
+
+[ "$DOCTOR" = 1 ] && { doctor; exit 0; }
+[ "$UNINSTALL" = 1 ] && { uninstall; exit 0; }
+
+# ---------------------------------------------------------------- mode
+if [ -z "$MODE" ]; then
+  if interactive; then
+    cat <<EOF
+${B}papercut-explainer setup${N}
+
+How much do you want to set up?
+
+  1) Minimal   The skills only (hook, script, storyboard, strategy, style prompts).
+               Nothing renders. Takes seconds.
+  2) Standard  Minimal + render silent reels: dependency check, Remotion skills,
+               Python tools, a self-test render.             ~0.7 GB, a few minutes.
+  3) Full      Standard + local voiceover: Qwen3-TTS + word-timing ASR.
+                                                              +4-6 GB (1.5 GB venv + model).
+  4) Custom    Pick each component.
+
+EOF
+    printf 'Choose 1-4 [2]: '; read -r c
+    case "${c:-2}" in 1) MODE=minimal ;; 2) MODE=standard ;; 3) MODE=full ;; 4) MODE=custom ;; *) echo "pick 1-4" >&2; exit 2 ;; esac
+  else
+    echo "no terminal to ask on: pass --mode minimal|standard|full|custom (and --yes)" >&2; exit 2
+  fi
+fi
+
+C_SKILLS=0; C_DEPS=0; C_REMO=0; C_PY=0; C_TTS=0; C_VERIFY=0
+case "$MODE" in
+  minimal)  C_SKILLS=1 ;;
+  standard) C_SKILLS=1; C_DEPS=1; C_REMO=1; C_PY=1; C_VERIFY=1 ;;
+  full)     C_SKILLS=1; C_DEPS=1; C_REMO=1; C_PY=1; C_TTS=1; C_VERIFY=1 ;;
+  custom)
+    if [ -n "$COMPONENTS" ]; then
+      for c in $(printf '%s' "$COMPONENTS" | tr ',' ' '); do
+        case "$c" in skills) C_SKILLS=1 ;; deps) C_DEPS=1 ;; remotion-skills) C_REMO=1 ;; pytools) C_PY=1 ;; tts) C_TTS=1 ;; verify) C_VERIFY=1 ;;
+          *) echo "unknown component: $c" >&2; exit 2 ;; esac
+      done
+    else
+      interactive || { echo "--mode custom needs --components or a terminal" >&2; exit 2; }
+      confirm "Install the skills (links into $SKILLS_DIR)?" y && C_SKILLS=1
+      confirm "Check dependencies (node 20+, npm, ffmpeg, python3)?" y && C_DEPS=1
+      confirm "Install the Remotion agent skills (npx skills add remotion-dev/skills)?" y && C_REMO=1
+      confirm "Set up Python tools (venv with numpy + Pillow, for QA contact sheets)?" y && C_PY=1
+      if confirm "Set up local voiceover (Qwen3-TTS + ASR; 4-6 GB of disk)?" n; then
+        C_TTS=1
+        printf 'Model size: 1) 1.7B better, 4.2 GB   2) 0.6B lighter, 2.3 GB  [1]: '; read -r m
+        [ "$m" = 2 ] && TTS_MODEL=0.6B
+        confirm "Also download the voice-cloning model (same size again)?" n && WITH_CLONE=1
+      fi
+      confirm "Run a self-test render at the end?" y && C_VERIFY=1
+    fi ;;
+  *) echo "unknown mode: $MODE" >&2; exit 2 ;;
+esac
+
+if [ "$MODE" != custom ] && interactive; then
+  say "Plan ($MODE)"
+  [ $C_SKILLS = 1 ] && echo "  - link the skills into $SKILLS_DIR"
+  [ $C_DEPS = 1 ]   && echo "  - check node, npm, ffmpeg, python3"
+  [ $C_REMO = 1 ]   && echo "  - install the Remotion agent skills (global)"
+  [ $C_PY = 1 ]     && echo "  - create a Python venv with numpy + Pillow"
+  [ $C_TTS = 1 ]    && echo "  - build a voice venv and download Qwen3-TTS $TTS_MODEL (~$([ "$TTS_MODEL" = 1.7B ] && echo 4.2 || echo 2.3) GB)"
+  [ $C_VERIFY = 1 ] && echo "  - scaffold a throwaway project and render one still (npm install runs once)"
+  confirm "Go?" y || { echo "cancelled"; exit 0; }
+fi
+[ "$MODE" = full ] && interactive && ! confirm "Full mode asks for a multi-GB model download. Keep model size $TTS_MODEL?" y && { echo "rerun with --tts-model 0.6B or --mode standard"; exit 0; }
+
+# ---------------------------------------------------------------- steps
+FAILED=""; SKIPPED=""; DONE=""
+note_fail() { FAILED="$FAILED $1"; bad "$1 failed: $2"; }
+
+step_config() {
+  say "config"
+  run mkdir -p "$CFG_DIR"
+  if [ "$DRY" = 0 ]; then
+    papercut_config_set PAPERCUT_HOME "$ROOT"
+    papercut_config_set PAPERCUT_LIB "$LIB"
+  fi
+  ok "$PAPERCUT_CONFIG"
+}
+
+step_skills() {
+  say "skills -> $SKILLS_DIR"
+  run mkdir -p "$SKILLS_DIR" "$CFG_DIR"
+  local ts; ts="$(date +%Y%m%d-%H%M%S)"
+  for s in $(SKILL_NAMES); do
+    local src="$ROOT/skills/$s" dst="$SKILLS_DIR/$s"
+    if [ -L "$dst" ]; then
+      run rm "$dst"
+    elif [ -e "$dst" ]; then
+      if confirm "$dst exists and is not a link from this installer. Back it up and replace?" y; then
+        run mv "$dst" "$dst.bak-$ts"; miss "backed up to $dst.bak-$ts"
+      else miss "kept existing $s"; continue; fi
+    fi
+    if [ "$COPY" = 1 ]; then run cp -R "$src" "$dst"; [ "$DRY" = 1 ] || touch "$dst/.papercut-installed"; else run ln -s "$src" "$dst"; fi
+    [ "$DRY" = 1 ] || echo "$dst" >> "$CFG_DIR/installed.txt"
+    ok "$s"
+  done
+  # the scene-builder subagent sits next to the skills dir: ~/.claude/agents, or <project>/.claude/agents
+  local adir; adir="$(dirname "$SKILLS_DIR")/agents"
+  run mkdir -p "$adir"
+  for a in "$ROOT"/agents/*.md; do
+    [ -f "$a" ] || continue
+    local adst="$adir/$(basename "$a")"
+    if [ -e "$adst" ] && [ ! -L "$adst" ]; then miss "kept existing agent $(basename "$a")"; continue; fi
+    [ -L "$adst" ] && run rm "$adst"
+    if [ "$COPY" = 1 ]; then run cp "$a" "$adst"; else run ln -s "$a" "$adst"; fi
+    [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
+    ok "agent $(basename "$a" .md)"
+  done
+  [ "$DRY" = 1 ] || { sort -u "$CFG_DIR/installed.txt" -o "$CFG_DIR/installed.txt"; }
+}
+
+step_deps() {
+  say "dependencies"
+  local miss_any=0
+  if command -v node >/dev/null 2>&1; then v="$(node -v | sed 's/^v//')"; if ver_ge "$v" 20; then ok "node $v"; else bad "node $v, need 20+"; miss_any=1; fi
+  else bad "node not found. Install Node 20+: https://nodejs.org or 'brew install node'"; miss_any=1; fi
+  command -v npm >/dev/null 2>&1 && ok "npm" || { bad "npm not found (ships with node)"; miss_any=1; }
+  command -v ffmpeg >/dev/null 2>&1 && ok "ffmpeg" || { bad "ffmpeg not found: 'brew install ffmpeg' or 'apt install ffmpeg'"; miss_any=1; }
+  command -v rsync >/dev/null 2>&1 && ok "rsync" || { bad "rsync not found (the kit sync uses it): 'brew install rsync' or 'apt install rsync'"; miss_any=1; }
+  if papercut_find_chrome >/dev/null; then
+    ok "Chrome or Chromium (sound effects and music render)"
+  else miss "Chrome/Chromium not found: only the SFX and music render needs it (set CHROME_PATH or install Chrome); video renders do not"; fi
+  command -v python3 >/dev/null 2>&1 && ok "python3" || { bad "python3 not found"; miss_any=1; }
+  if [ $miss_any = 1 ]; then note_fail deps "install the items above, then rerun with --mode custom --components deps,verify"; return 1; fi
+}
+
+step_remotion() {
+  say "Remotion agent skills"
+  if [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ]; then ok "already installed"; return; fi
+  command -v npx >/dev/null 2>&1 || { note_fail remotion-skills "npx not found"; return 1; }
+  run npx -y skills@latest add remotion-dev/skills -g -y || note_fail remotion-skills "npx skills add failed; run it by hand"
+}
+
+step_pytools() {
+  say "Python tools (numpy + Pillow + soundfile)"
+  local V="$DATA_DIR/tools-venv"
+  command -v python3 >/dev/null 2>&1 || { note_fail pytools "python3 missing"; return 1; }
+  run mkdir -p "$DATA_DIR"
+  [ -x "$V/bin/python" ] || run python3 -m venv "$V"
+  run "$V/bin/python" -m pip install -q -U pip numpy pillow soundfile || { note_fail pytools "pip install failed"; return 1; }
+  [ "$DRY" = 1 ] || papercut_config_set PAPERCUT_PY "$V/bin/python"
+  ok "PAPERCUT_PY=$V/bin/python"
+}
+
+step_tts() {
+  say "local voiceover"
+  local args="--model $TTS_MODEL --yes"; [ "$WITH_CLONE" = 1 ] && args="$args --with-clone"
+  # shellcheck disable=SC2086
+  run bash "$LIB/voice/setup_tts.sh" $args || note_fail tts "see the output above; rerun: library/voice/setup_tts.sh"
+}
+
+step_verify() {
+  say "self-test render"
+  run bash "$LIB/tools/selftest.sh" || note_fail verify "self-test failed; run library/tools/selftest.sh to see why"
+}
+
+step_config
+[ $C_SKILLS = 1 ] && step_skills
+if [ $C_DEPS = 1 ]; then step_deps || C_VERIFY=0; fi
+[ $C_REMO = 1 ] && step_remotion
+[ $C_PY = 1 ] && step_pytools
+[ $C_TTS = 1 ] && step_tts
+[ $C_VERIFY = 1 ] && step_verify
+
+# ---------------------------------------------------------------- summary
+echo
+say "Done ($MODE)"
+[ -n "$FAILED" ] && bad "needs attention:$FAILED"
+cat <<EOF
+
+Next: open Claude Code and say
+  "make a papercut explainer about <link>"
+or run one stage on its own: "write a hook for ...", "storyboard this script", "set up the voice".
+
+Check the setup any time: ./install.sh --doctor
+EOF
+[ -z "$FAILED" ]

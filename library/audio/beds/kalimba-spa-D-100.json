@@ -1,0 +1,4 @@
+{"desc": "Warm spa-pop kalimba, Dmaj7–Bm7–Gmaj7–A6, 100 bpm, soft pad, finger snaps, water plips.", "mood": "calm, cozy, wellness",
+ "bpm": 100, "instrument": "kalimba", "octave": 12, "prog": [[38, [62, 66, 69, 73]], [35, [59, 62, 66, 69]], [43, [59, 62, 67, 71]], [45, [61, 64, 69, 71]]],
+ "pattern": [0, 2, 1, 3, 2, 1, 3, 2], "skip": [[3, 2, 0], [7, 2, 0]], "sub": [[0, 1.8, 0.4], [2.5, 1.2, 0.28]], "pad": 0.035,
+ "pluckDecay": 0.5, "pluckGain": [0.1, 0.07], "shaker": [0.025, 7000], "perc": "snap", "percGain": 0.2, "plips": 0.06, "outro": [74, 78, 81, 85, 86]}

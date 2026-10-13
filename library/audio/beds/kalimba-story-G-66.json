@@ -1,0 +1,5 @@
+{"desc": "Storybook lullaby kalimba, Gmaj7–Em7–Cmaj7–D6, 66 bpm, sparse 8ths with long ringing decay, warm pad, no percussion, rare water plips, top-note sparkle every 4th bar.", "mood": "calm, tender, storybook, bedtime",
+ "bpm": 66, "instrument": "kalimba", "octave": 12, "prog": [[43, [59, 62, 66, 67]], [40, [59, 62, 64, 67]], [48, [59, 60, 64, 67]], [38, [57, 62, 64, 66]]],
+ "pattern": [0, 2, 1, 3, 2, 1, 3, 2], "skip": [[1, 1, 0], [7, 1, 0], [5, 2, 0]], "sub": [[0, 3.2, 0.26], [2.5, 1.4, 0.12]], "pad": 0.055,
+ "pluckDecay": 1.15, "pluckGain": [0.075, 0.05], "shaker": [0, 7000], "perc": null, "plips": 0.035, "sparkleEvery4th": true,
+ "musicGain": 0.3, "tailSec": 2.2, "outro": [74, 78, 79, 83, 86]}

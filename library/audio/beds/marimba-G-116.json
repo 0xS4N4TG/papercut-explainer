@@ -1,0 +1,4 @@
+{"desc": "Playful marimba, vi–IV–I–V in G, 116 bpm, soft claps on 2 and 4.", "mood": "upbeat, confident",
+ "bpm": 116, "instrument": "marimba", "prog": [[40, [64, 67, 71, 76]], [36, [60, 64, 67, 72]], [43, [62, 67, 71, 74]], [38, [62, 66, 69, 74]]],
+ "pattern": [0, 1, 2, 1, 3, 2, 1, 2], "skip": [[5, 2, 1]], "sub": [[0, 1.6, 0.45], [2, 1.6, 0.35]], "sparkleEvery4th": true,
+ "perc": "clap", "percGain": 0.16, "outro": [67, 71, 74, 79, 83]}

@@ -1,0 +1,11 @@
+{
+ "S01Hook": [
+  ["Vocalyst", 0, "hit", -6],
+  ["charges", 0, "toss", 0],
+  ["charges", 0, "bonk", 9],
+  ["15", 0, "coin", 0],
+  ["month", 0, "click", 0],
+  ["clone", 0, "plug", 0],
+  ["voice", 0, "glint", 2]
+ ]
+}
