@@ -32,7 +32,7 @@ export const Paper: React.FC<{children: React.ReactNode; lift?: number; torn?: b
   </div>
 );
 
-// One cut piece of paper. `shade` adds a darker underside strip, `hi` a lighter top strip.
+// One cut piece of paper. (x, y) is the top-left corner. `shade` adds a darker underside strip, `hi` a lighter top strip.
 export const Slab: React.FC<{
   x: number; y: number; w: number; h: number; color: string; r?: number | string;
   shade?: string; shadeH?: number; hi?: string; hiH?: number; rot?: number; grain?: number;
@@ -49,11 +49,12 @@ export const Slab: React.FC<{
   </div>
 );
 
+// Paper disc (circle). (x, y) is the center.
 export const Disc: React.FC<{x: number; y: number; d: number; color: string; shade?: string; children?: React.ReactNode; style?: React.CSSProperties}> = ({x, y, d, color, shade, children, style}) => (
   <Slab x={x - d / 2} y={y - d / 2} w={d} h={d} r="50%" color={color} shade={shade} shadeH={0.28} style={style}>{children}</Slab>
 );
 
-// Pill label: bold sans caps.
+// Pill label: bold sans caps. (x, y) is the center (unless center={false}).
 export const Pill: React.FC<{x: number; y: number; text: string; bg?: string; color?: string; size?: number; rot?: number; center?: boolean}> = ({x, y, text, bg = C.ink, color = '#F3EEE6', size = 30, rot = 0, center = true}) => (
   <div style={{
     position: 'absolute', left: x, top: y, translate: center ? '-50% -50%' : undefined, rotate: `${rot}deg`, whiteSpace: 'nowrap',
@@ -64,7 +65,7 @@ export const Pill: React.FC<{x: number; y: number; text: string; bg?: string; co
   }}>{text}</div>
 );
 
-// Cream paper card with grey "text" bars.
+// Cream paper card with grey "text" bars. (x, y) is the top-left corner, like Slab.
 export const Card: React.FC<{x: number; y: number; w: number; h: number; lines?: number; rot?: number; color?: string; children?: React.ReactNode; seed?: string}> = ({x, y, w, h, lines = 3, rot = 0, color = C.cream, children, seed = 'card'}) => (
   <Slab x={x} y={y} w={w} h={h} color={color} r={3} rot={rot} shade={C.creamLo} shadeH={0.06}>
     {Array.from({length: lines}).map((_, i) => (
