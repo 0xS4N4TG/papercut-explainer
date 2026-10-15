@@ -2,7 +2,7 @@
 
 Copy-paste prompts for each skill, in the order of the workflow, with what to expect. Replace anything in `<angle brackets>`.
 
-Claude Code picks a skill from your wording. If the wrong one loads, or none does, name it: "use papercut-hook to write 5 hooks for this fact list". Each skill reads the files the stage before it wrote, so you can stop after any stage and pick up in a new session. `examples/paper-trail/` shows what every stage writes.
+Claude Code or opencode picks a skill from your wording. If the wrong one loads, or none does, name it: "use papercut-hook to write 5 hooks for this fact list". Each skill reads the files the stage before it wrote, so you can stop after any stage and pick up in a new session. `examples/paper-trail/` shows what every stage writes.
 
 ## End to end
 
@@ -32,7 +32,7 @@ Set up papercut-explainer, partial install
 
 - Loads `papercut-setup`. It runs `./install.sh --doctor` from the repo root and tells you in plain words what is installed and which mode that adds up to.
 - Asks, in one question: how much (Minimal, Standard, Full or Custom), skills for every project or one, symlink or copy. "Partial" usually means Minimal, or Custom with the components you name (`skills,deps,pytools,verify`). It asks again before any multi-GB download.
-- Runs `install.sh --yes` with the matching flags and writes `~/.config/papercut-explainer/config.env`, which every later skill reads for the library path. A new Claude Code session picks up the linked skills.
+- Runs `install.sh --yes` with the matching flags and writes `~/.config/papercut-explainer/config.env`, which every later skill reads for the library path. A new Claude Code session picks up the linked skills (restart it); opencode reloads them automatically.
 
 ## 2. Strategy
 
