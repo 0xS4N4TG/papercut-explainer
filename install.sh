@@ -16,8 +16,11 @@
 # Options
 #   --mode M              minimal | standard | full | custom
 #   --components a,b,c    with --mode custom: skills,deps,remotion-skills,pytools,tts,verify
-#   --skills-dir DIR      where skills go (default ~/.claude/skills); the subagent goes in the sibling folder DIR/../agents
-#   --project DIR         install skills into DIR/.claude/skills instead (one project only)
+#   --target T            claude | opencode | all (default all: install for both agents)
+#   --skills-dir DIR      where skills go (overrides --target with a single dir);
+#                         the subagent goes in the sibling folder DIR/../agents
+#   --project DIR         install skills into DIR/.claude/skills and DIR/.opencode/skills
+#                         instead (one project only; --target filters which of the two)
 #   --copy                copy the skills instead of symlinking them (no live updates from this checkout)
 #   --tts-model 1.7B|0.6B model size for the voice step (default 1.7B)
 #   --with-clone          also download the voice-cloning model
@@ -33,15 +36,17 @@ export PAPERCUT_CONFIG="$CFG_DIR/config.env"
 . "$LIB/env.sh"
 export PAPERCUT_LIB="$LIB"   # this checkout wins over a stale path left in an older config file
 
-MODE=""; COMPONENTS=""; SKILLS_DIR="$HOME/.claude/skills"; COPY=0; YES=0; DRY=0
+MODE=""; COMPONENTS=""; TARGET="all"; SKILLS_DIR=""; SKILLS_DIR_EXPLICIT=0; PROJECT_DIR=""
+COPY=0; YES=0; DRY=0
 TTS_MODEL=1.7B; WITH_CLONE=0; DOCTOR=0; UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --mode) MODE=${2:?--mode needs a value}; shift 2 ;;
     --components) COMPONENTS=${2:?--components needs a value}; shift 2 ;;
-    --skills-dir) SKILLS_DIR=${2:?--skills-dir needs a value}; shift 2 ;;
+    --target) TARGET=${2:?--target needs claude, opencode or all}; shift 2 ;;
+    --skills-dir) SKILLS_DIR=${2:?--skills-dir needs a value}; SKILLS_DIR_EXPLICIT=1; shift 2 ;;
     --project) [ -d "${2:?--project needs a folder}" ] || { echo "--project: $2 is not a folder" >&2; exit 2; }
-               SKILLS_DIR="$(cd "$2" && pwd)/.claude/skills"; shift 2 ;;
+               PROJECT_DIR="$(cd "$2" && pwd)"; shift 2 ;;
     --copy) COPY=1; shift ;;
     --tts-model) TTS_MODEL=${2:?--tts-model needs 1.7B or 0.6B}; shift 2 ;;
     --with-clone) WITH_CLONE=1; shift ;;
@@ -53,6 +58,35 @@ while [ $# -gt 0 ]; do
     *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
   esac
 done
+
+case "$TARGET" in
+  claude|opencode|all) ;;
+  *) echo "--target needs claude, opencode or all (got: $TARGET)" >&2; exit 2 ;;
+esac
+
+# Skill destinations. One entry per agent target, so both Claude Code and
+# opencode pick the skills up (opencode also reads ~/.claude/skills, but the
+# native path keeps discovery explicit and survives config changes).
+# --skills-dir overrides the list with a single dir (legacy behaviour);
+# --project scopes the install to one project folder instead of user-wide.
+SKILLS_DIRS=""
+if [ "$SKILLS_DIR_EXPLICIT" = 1 ]; then
+  SKILLS_DIRS="$SKILLS_DIR"
+else
+  if [ -n "$PROJECT_DIR" ]; then
+    case "$TARGET" in
+      claude)   SKILLS_DIRS="$PROJECT_DIR/.claude/skills" ;;
+      opencode) SKILLS_DIRS="$PROJECT_DIR/.opencode/skills" ;;
+      all)      SKILLS_DIRS="$PROJECT_DIR/.claude/skills $PROJECT_DIR/.opencode/skills" ;;
+    esac
+  else
+    case "$TARGET" in
+      claude)   SKILLS_DIRS="$HOME/.claude/skills" ;;
+      opencode) SKILLS_DIRS="$HOME/.config/opencode/skills" ;;
+      all)      SKILLS_DIRS="$HOME/.claude/skills $HOME/.config/opencode/skills" ;;
+    esac
+  fi
+fi
 
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 say()  { printf '%s==>%s %s\n' "$B" "$N" "$*"; }
@@ -73,20 +107,26 @@ ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }   
 
 # ---------------------------------------------------------------- doctor
 doctor() {
-  say "papercut-explainer: status"
+  say "papercut-explainer: status (target: $TARGET)"
   local n=0 t=0 L_SKILLS=0 L_STD=1 L_FULL=0
-  for s in $(SKILL_NAMES); do
-    t=$((t+1))
-    if [ -e "$SKILLS_DIR/$s/SKILL.md" ]; then n=$((n+1)); else miss "skill $s not in $SKILLS_DIR"; fi
+  for dir in $SKILLS_DIRS; do
+    for s in $(SKILL_NAMES); do
+      t=$((t+1))
+      if [ -e "$dir/$s/SKILL.md" ]; then n=$((n+1)); else miss "skill $s not in $dir"; fi
+    done
   done
-  if [ "$n" = "$t" ] && [ "$t" -gt 0 ]; then ok "skills: $n/$t in $SKILLS_DIR"; L_SKILLS=1; else bad "skills: $n/$t installed"; fi
+  if [ "$n" = "$t" ] && [ "$t" -gt 0 ]; then ok "skills: $n/$t in $SKILLS_DIRS"; L_SKILLS=1; else bad "skills: $n/$t installed"; fi
   [ -f "$PAPERCUT_CONFIG" ] && ok "config: $PAPERCUT_CONFIG (PAPERCUT_LIB=$PAPERCUT_LIB)" || miss "config file missing ($PAPERCUT_CONFIG)"
   if command -v node >/dev/null 2>&1; then v="$(node -v | sed 's/^v//')"; if ver_ge "$v" 20; then ok "node $v"; else bad "node $v (need 20+)"; L_STD=0; fi; else miss "node (need 20+)"; L_STD=0; fi
   command -v npm >/dev/null 2>&1 && ok "npm" || { miss "npm"; L_STD=0; }
   command -v ffmpeg >/dev/null 2>&1 && ok "ffmpeg" || { miss "ffmpeg"; L_STD=0; }
   command -v rsync >/dev/null 2>&1 && ok "rsync" || { miss "rsync"; L_STD=0; }
   command -v python3 >/dev/null 2>&1 && ok "python3 $(python3 -c 'import platform;print(platform.python_version())')" || { miss "python3"; L_STD=0; }
-  if [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ] || [ -f "$SKILLS_DIR/remotion-best-practices/SKILL.md" ]; then ok "remotion skills"; else miss "remotion skills (npx skills add remotion-dev/skills)"; L_STD=0; fi
+  local remo_found=0 d
+  for d in $SKILLS_DIRS "$HOME/.claude/skills" "$HOME/.config/opencode/skills" "$HOME/.agents/skills"; do
+    [ -f "$d/remotion-best-practices/SKILL.md" ] && remo_found=1
+  done
+  if [ $remo_found = 1 ]; then ok "remotion skills"; else miss "remotion skills (npx skills add remotion-dev/skills, see step_remotion)"; L_STD=0; fi
   if "$PAPERCUT_PY" -c 'import numpy, PIL, soundfile' >/dev/null 2>&1; then ok "python tools: numpy + Pillow + soundfile ($PAPERCUT_PY)"; else miss "python tools (numpy + Pillow + soundfile)"; L_STD=0; fi
   if papercut_find_chrome >/dev/null; then ok "Chrome or Chromium (sound effects and music render)"; else miss "Chrome/Chromium (only the SFX and music render needs it)"; fi
   if "$QWEN_TTS_PY" -c 'import qwen_tts' >/dev/null 2>&1; then
@@ -156,7 +196,7 @@ case "$MODE" in
       done
     else
       interactive || { echo "--mode custom needs --components or a terminal" >&2; exit 2; }
-      confirm "Install the skills (links into $SKILLS_DIR)?" y && C_SKILLS=1
+      confirm "Install the skills (links into $SKILLS_DIRS)?" y && C_SKILLS=1
       confirm "Check dependencies (node 20+, npm, ffmpeg, python3)?" y && C_DEPS=1
       confirm "Install the Remotion agent skills (npx skills add remotion-dev/skills)?" y && C_REMO=1
       confirm "Set up Python tools (venv with numpy + Pillow, for QA contact sheets)?" y && C_PY=1
@@ -173,7 +213,7 @@ esac
 
 if [ "$MODE" != custom ] && interactive; then
   say "Plan ($MODE)"
-  [ $C_SKILLS = 1 ] && echo "  - link the skills into $SKILLS_DIR"
+  [ $C_SKILLS = 1 ] && echo "  - link the skills into $SKILLS_DIRS (target: $TARGET)"
   [ $C_DEPS = 1 ]   && echo "  - check node, npm, ffmpeg, python3"
   [ $C_REMO = 1 ]   && echo "  - install the Remotion agent skills (global)"
   [ $C_PY = 1 ]     && echo "  - create a Python venv with numpy + Pillow"
@@ -198,41 +238,45 @@ step_config() {
 }
 
 step_skills() {
-  say "skills -> $SKILLS_DIR"
-  run mkdir -p "$SKILLS_DIR" "$CFG_DIR"
-  local ts bak; ts="$(date +%Y%m%d-%H%M%S)"; bak="$CFG_DIR/backups"
-  for s in $(SKILL_NAMES); do
-    local src="$ROOT/skills/$s" dst="$SKILLS_DIR/$s"
-    if [ -L "$dst" ]; then
-      run rm "$dst"
-    elif [ -e "$dst" ]; then
-      if [ -f "$dst/.papercut-installed" ] || diff -rq "$src" "$dst" >/dev/null 2>&1; then
-        run rm -rf "$dst"   # an earlier --copy install or an identical copy (npx skills add): refresh it
-      elif confirm "$dst exists and differs from this checkout. Back it up and replace?" y; then
-        # backups live outside the skills folder, so Claude Code does not load them as duplicate skills
-        run mkdir -p "$bak"; run mv "$dst" "$bak/$s.$ts"; miss "backed up to $bak/$s.$ts"
-      else miss "kept existing $s"; continue; fi
-    fi
-    if [ "$COPY" = 1 ]; then run cp -R "$src" "$dst"; [ "$DRY" = 1 ] || touch "$dst/.papercut-installed"; else run ln -s "$src" "$dst"; fi
-    [ "$DRY" = 1 ] || echo "$dst" >> "$CFG_DIR/installed.txt"
-    ok "$s"
-  done
-  # the scene-builder subagent sits next to the skills dir: ~/.claude/agents, or <project>/.claude/agents
-  local adir; adir="$(dirname "$SKILLS_DIR")/agents"
-  run mkdir -p "$adir"
-  for a in "$ROOT"/agents/*.md; do
-    [ -f "$a" ] || continue
-    local adst="$adir/$(basename "$a")"
-    if [ -L "$adst" ]; then run rm "$adst"
-    elif [ -e "$adst" ]; then
-      if cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
-      elif confirm "$adst exists and differs from this checkout. Back it up and replace?" y; then
-        run mkdir -p "$CFG_DIR/backups"; run mv "$adst" "$CFG_DIR/backups/$(basename "$a" .md).$ts.md"; miss "backed up to $CFG_DIR/backups"
-      else miss "kept existing agent $(basename "$a")"; continue; fi
-    fi
-    if [ "$COPY" = 1 ]; then run cp "$a" "$adst"; else run ln -s "$a" "$adst"; fi
-    [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
-    ok "agent $(basename "$a" .md)"
+  local onedir adir
+  for onedir in $SKILLS_DIRS; do
+    say "skills -> $onedir"
+    run mkdir -p "$onedir" "$CFG_DIR"
+    local ts bak; ts="$(date +%Y%m%d-%H%M%S)"; bak="$CFG_DIR/backups"
+    for s in $(SKILL_NAMES); do
+      local src="$ROOT/skills/$s" dst="$onedir/$s"
+      if [ -L "$dst" ]; then
+        run rm "$dst"
+      elif [ -e "$dst" ]; then
+        if [ -f "$dst/.papercut-installed" ] || diff -rq "$src" "$dst" >/dev/null 2>&1; then
+          run rm -rf "$dst"   # an earlier --copy install or an identical copy (npx skills add): refresh it
+        elif confirm "$dst exists and differs from this checkout. Back it up and replace?" y; then
+          # backups live outside the skills folder, so agents do not load them as duplicate skills
+          run mkdir -p "$bak"; run mv "$dst" "$bak/$s.$ts"; miss "backed up to $bak/$s.$ts"
+        else miss "kept existing $s"; continue; fi
+      fi
+      if [ "$COPY" = 1 ]; then run cp -R "$src" "$dst"; [ "$DRY" = 1 ] || touch "$dst/.papercut-installed"; else run ln -s "$src" "$dst"; fi
+      [ "$DRY" = 1 ] || echo "$dst" >> "$CFG_DIR/installed.txt"
+      ok "$s ($onedir)"
+    done
+    # the scene-builder subagent sits next to the skills dir:
+    # ~/.claude/agents, ~/.config/opencode/agents, or <project>/.claude|opencode/agents
+    adir="$(dirname "$onedir")/agents"
+    run mkdir -p "$adir"
+    for a in "$ROOT"/agents/*.md; do
+      [ -f "$a" ] || continue
+      local adst="$adir/$(basename "$a")"
+      if [ -L "$adst" ]; then run rm "$adst"
+      elif [ -e "$adst" ]; then
+        if cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
+        elif confirm "$adst exists and differs from this checkout. Back it up and replace?" y; then
+          run mkdir -p "$CFG_DIR/backups"; run mv "$adst" "$CFG_DIR/backups/$(basename "$a" .md).$ts.md"; miss "backed up to $CFG_DIR/backups"
+        else miss "kept existing agent $(basename "$a")"; continue; fi
+      fi
+      if [ "$COPY" = 1 ]; then run cp "$a" "$adst"; else run ln -s "$a" "$adst"; fi
+      [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
+      ok "agent $(basename "$a" .md) ($adir)"
+    done
   done
   [ "$DRY" = 1 ] || [ ! -f "$CFG_DIR/installed.txt" ] || sort -u "$CFG_DIR/installed.txt" -o "$CFG_DIR/installed.txt"
 }
@@ -253,10 +297,25 @@ step_deps() {
 }
 
 step_remotion() {
-  say "Remotion agent skills"
-  if [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ]; then ok "already installed"; return; fi
+  say "Remotion agent skills (target: $TARGET)"
+  local need_cc=0 need_oc=0
+  case "$TARGET" in
+    claude)   need_cc=1 ;;
+    opencode) need_oc=1 ;;
+    all)      need_cc=1; need_oc=1 ;;
+  esac
+  [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ] && need_cc=0
+  [ -f "$HOME/.config/opencode/skills/remotion-best-practices/SKILL.md" ] && need_oc=0
+  # opencode also discovers ~/.claude/skills, so a Claude-side install covers both;
+  # the native opencode install below just makes it explicit.
+  if [ $need_cc = 0 ] && [ $need_oc = 0 ]; then ok "already installed"; return; fi
   command -v npx >/dev/null 2>&1 || { note_fail remotion-skills "npx not found"; return 1; }
-  run npx -y skills@latest add remotion-dev/skills -g -y -a claude-code || note_fail remotion-skills "npx skills add failed; run it by hand"
+  if [ $need_cc = 1 ]; then
+    if ! run npx -y skills@latest add remotion-dev/skills -g -y -a claude-code; then note_fail remotion-skills "npx skills add failed for claude-code; run it by hand"; fi
+  fi
+  if [ $need_oc = 1 ]; then
+    if ! run npx -y skills@latest add remotion-dev/skills -g -y -a opencode; then note_fail remotion-skills "npx skills add failed for opencode; run it by hand"; fi
+  fi
 }
 
 step_pytools() {
@@ -298,9 +357,9 @@ say "Done ($MODE)"
 if [ -n "$FAILED" ]; then bad "needs attention:$FAILED"; echo "After fixing, rerun the failed part with --mode custom --components <names>, or check everything with ./install.sh --doctor."; exit 1; fi
 cat <<EOF
 
-Next: open Claude Code and say
+Next: open Claude Code or opencode and say
   "make a papercut explainer about <link>"
 or run one stage on its own: "write a hook for ...", "storyboard this script", "set up the voice".
 
-Check the setup any time: ./install.sh --doctor
+Check the setup any time: ./install.sh --doctor [--target claude|opencode|all]
 EOF
