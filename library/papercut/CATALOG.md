@@ -67,10 +67,10 @@ If a scene needs something the kit lacks, build it in your scene file. The lead 
 - `const GRAIN = staticFile('bg/grain.png');`
 - `const PaperDefs: React.FC = () => (`: ---------- filters, mounted once at the root ----------
 - `<Paper children: React.ReactNode; lift?: number; torn?: boolean; style?: React.CSSProperties>`: Paper wrapper for a whole prop: rough edge + drop shadow (light from the top-left).
-- `<Slab x: number; y: number; w: number; h: number; color: string; r?: number | string; shade?: string; shadeH?: number; hi?: string; hiH?: number; rot?: number; grain?: number; children?: React.ReactNode; style?: React.CSSProperties;>`: One cut piece of paper. `shade` adds a darker underside strip, `hi` a lighter top strip.
-- `<Disc x: number; y: number; d: number; color: string; shade?: string; children?: React.ReactNode; style?: React.CSSProperties>`
-- `<Pill x: number; y: number; text: string; bg?: string; color?: string; size?: number; rot?: number; center?: boolean>`: Pill label: bold sans caps.
-- `<Card x: number; y: number; w: number; h: number; lines?: number; rot?: number; color?: string; children?: React.ReactNode; seed?: string>`: Cream paper card with grey "text" bars.
+- `<Slab x: number; y: number; w: number; h: number; color: string; r?: number | string; shade?: string; shadeH?: number; hi?: string; hiH?: number; rot?: number; grain?: number; children?: React.ReactNode; style?: React.CSSProperties;>`: One cut piece of paper. (x, y) is the top-left corner. `shade` adds a darker underside strip, `hi` a lighter top strip.
+- `<Disc x: number; y: number; d: number; color: string; shade?: string; children?: React.ReactNode; style?: React.CSSProperties>`: Paper disc (circle). (x, y) is the center.
+- `<Pill x: number; y: number; text: string; bg?: string; color?: string; size?: number; rot?: number; center?: boolean>`: Pill label: bold sans caps. (x, y) is the center (unless center={false}).
+- `<Card x: number; y: number; w: number; h: number; lines?: number; rot?: number; color?: string; children?: React.ReactNode; seed?: string>`: Cream paper card with grey "text" bars. (x, y) is the top-left corner, like Slab.
 - `<PopIn at: number; seed?: string; children: React.ReactNode; origin?: string; style?: React.CSSProperties>`: ---------- motion ----------
 - `<SlideIn at: number; dx?: number; dy?: number; dur?: number; children: React.ReactNode>`
 - `<Boil amp?: number; rot?: number; seed?: string; children: React.ReactNode>`: Stop-motion boil for screen-space paper overlays: hold 2 frames, then jump.

@@ -1,6 +1,6 @@
 # papercut-explainer
 
-Make short vertical explainer reels that look like layered construction paper, with Claude Code doing the work.
+Make short vertical explainer reels that look like layered construction paper, with Claude Code or opencode doing the work.
 
 ![A two-scene reel built with the library: hook title, parallax camera, word-by-word captions, a tape-pull cut and a comment-keyword CTA](docs/img/hello-reel.gif)
 
@@ -8,7 +8,7 @@ Make short vertical explainer reels that look like layered construction paper, w
 
 This repo is two things that work together:
 
-- **Nine Claude Code skills** that run the whole pipeline: strategy, hook, script, storyboard, voice, build, QA, and an installer. Ask for a reel, or run one stage on its own.
+- **Nine agent skills** (Claude Code and opencode) that run the whole pipeline: strategy, hook, script, storyboard, voice, build, QA, and an installer. Ask for a reel, or run one stage on its own.
 - **A Remotion library** the skills build on: a paper-cut component kit, 24 backdrops, 17 camera moves, 10 scene transitions, film-look layers, 79 sound effects and 8 music beds, plus the scripts that tie them into an episode.
 
 You describe the video ("explain this repo in 25 seconds"). The skills research it, write a script on a fixed spoken spine, plan every camera move and cut, make or fake the voiceover, and build the scenes in Remotion. You review stills and the final cut.
@@ -38,7 +38,7 @@ Each camera move and cut, with its props and when to use it, is in [`library/pap
 
 ## Install
 
-You need Node 20+, npm, ffmpeg, rsync and Python 3. Claude Code is the front end.
+You need Node 20+, npm, ffmpeg, rsync and Python 3. Claude Code or opencode is the front end.
 
 **With `npx skills`** (skills only, fastest):
 
@@ -79,15 +79,21 @@ Non-interactive and scoped installs:
 ./install.sh --uninstall                                 # remove the links it made
 ```
 
-By default skills are symlinked into `~/.claude/skills` and the subagent into `~/.claude/agents`, so a `git pull` updates them. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), replaces an identical existing skill folder (such as one from `npx skills add`) and moves a different one to `~/.config/papercut-explainer/backups/` instead of the skills folder, and does not touch your shell profile.
+By default skills are symlinked into `~/.claude/skills` and `~/.config/opencode/skills` (pass `--target claude` or `--target opencode` for only one) and the subagent into the sibling `agents` folders (`~/.claude/agents`, `~/.config/opencode/agents`; opencode also discovers the `.claude` paths), so a `git pull` updates them. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), replaces an identical existing skill folder (such as one from `npx skills add`) and moves a different one to `~/.config/papercut-explainer/backups/` instead of the skills folder, and does not touch your shell profile.
 
-Prefer to let Claude do it? Open Claude Code in this folder and say **"set up papercut-explainer"**. The `papercut-setup` skill asks which mode you want, confirms any large download, runs the installer with the right flags and checks the result.
+Opencode-only minimal install:
 
-Install by hand: symlink or copy each folder in `skills/` into `~/.claude/skills/`, `agents/papercut-scene.md` into `~/.claude/agents/`, then `export PAPERCUT_LIB="$PWD/library"`.
+```bash
+./install.sh --mode minimal --target opencode --yes
+```
+
+Prefer to let the agent do it? Open Claude Code or opencode in this folder and say **"set up papercut-explainer"**. The `papercut-setup` skill asks which mode you want, confirms any large download, runs the installer with the right flags and checks the result.
+
+Install by hand: symlink or copy each folder in `skills/` into `~/.claude/skills/` and `~/.config/opencode/skills/`, `agents/papercut-scene.md` into `~/.claude/agents/` and `~/.config/opencode/agents/`, then `export PAPERCUT_LIB="$PWD/library"`.
 
 ## Use it
 
-Open Claude Code in any folder you want the episode to live in and ask for a reel:
+Open Claude Code or opencode in any folder you want the episode to live in and ask for a reel:
 
 > Make a papercut explainer about https://github.com/example/echolark. 25 seconds, comment keyword PAPER.
 
@@ -219,7 +225,7 @@ Projects keep a snapshot of the kit in `src/lib/`, so an old episode renders the
 | Python | 3.9+ for the tools; 3.10–3.12 for the voice venv (the installer uses `uv` if you have it, else `python3.12`/`3.11`/`3.10`) |
 | Chrome or Chromium | for the SFX and music render only (`CHROME_PATH` to override). Video renders use Remotion's own headless browser, downloaded on first render. |
 | Disk | about 0.7 GB per project for `node_modules` (shared by APFS cloning on macOS; plain copy elsewhere, or set `DONOR`); 4–6 GB for local voice |
-| Claude Code | the skills and subagent target it |
+| Claude Code / opencode | the skills and subagent target both (see `--target`) |
 
 ## Cost
 
@@ -247,7 +253,7 @@ What moves the cost, largest first:
 | Model download stalls | Rerun `library/voice/setup_tts.sh`; finished files are kept. It already sets `HF_HUB_DISABLE_XET=1`. |
 | First render is slow | Remotion downloads its headless browser (about 200 MB) once. |
 | `--gl=angle` rejected | Edit the flag in `library/tools/render.py` and `qa.sh` for your Chrome build. |
-| A skill does not trigger | Check `ls ~/.claude/skills`; restart Claude Code after installing. |
+| A skill does not trigger | Check `ls ~/.claude/skills` and `ls ~/.config/opencode/skills`; restart Claude Code after installing (opencode reloads automatically). |
 
 ## Limits
 
