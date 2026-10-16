@@ -21,6 +21,9 @@
 #                         the subagent goes in the sibling folder DIR/../agents
 #   --project DIR         install skills into DIR/.claude/skills and DIR/.opencode/skills
 #                         instead (one project only; --target filters which of the two)
+#   --claude-model M      model for the papercut-scene subagent in Claude Code:
+#                         sonnet (default) | opus | haiku | inherit (use the session model) | a full model id
+#   --opencode-model M    model for it in opencode: inherit (default, session model) | provider/model-id
 #   --copy                copy the skills instead of symlinking them (no live updates from this checkout)
 #   --tts-model 1.7B|0.6B model size for the voice step (default 1.7B)
 #   --with-clone          also download the voice-cloning model
@@ -38,6 +41,7 @@ export PAPERCUT_LIB="$LIB"   # this checkout wins over a stale path left in an o
 
 MODE=""; COMPONENTS=""; TARGET="all"; TARGET_EXPLICIT=0; SKILLS_DIR=""; SKILLS_DIR_EXPLICIT=0; PROJECT_DIR=""
 COPY=0; YES=0; DRY=0
+CLAUDE_MODEL=sonnet; OPENCODE_MODEL=inherit
 TTS_MODEL=1.7B; WITH_CLONE=0; DOCTOR=0; UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -47,6 +51,8 @@ while [ $# -gt 0 ]; do
     --skills-dir) SKILLS_DIR=${2:?--skills-dir needs a value}; SKILLS_DIR_EXPLICIT=1; shift 2 ;;
     --project) [ -d "${2:?--project needs a folder}" ] || { echo "--project: $2 is not a folder" >&2; exit 2; }
                PROJECT_DIR="$(cd "$2" && pwd)"; shift 2 ;;
+    --claude-model) CLAUDE_MODEL=${2:?--claude-model needs sonnet, opus, haiku, inherit or a model id}; shift 2 ;;
+    --opencode-model) OPENCODE_MODEL=${2:?--opencode-model needs inherit or provider/model-id}; shift 2 ;;
     --copy) COPY=1; shift ;;
     --tts-model) TTS_MODEL=${2:?--tts-model needs 1.7B or 0.6B}; shift 2 ;;
     --with-clone) WITH_CLONE=1; shift ;;
@@ -62,6 +68,15 @@ done
 case "$TARGET" in
   claude|opencode|all) ;;
   *) echo "--target needs claude, opencode or all (got: $TARGET)" >&2; exit 2 ;;
+esac
+
+case "$CLAUDE_MODEL" in
+  ""|*[!A-Za-z0-9._:-]*) echo "--claude-model needs sonnet, opus, haiku, inherit or a model id (got: $CLAUDE_MODEL)" >&2; exit 2 ;;
+esac
+case "$OPENCODE_MODEL" in
+  inherit) ;;
+  */*) case "$OPENCODE_MODEL" in *[!A-Za-z0-9._:/-]*|/*|*/) echo "--opencode-model needs inherit or provider/model-id (got: $OPENCODE_MODEL)" >&2; exit 2 ;; esac ;;
+  *) echo "--opencode-model needs inherit or provider/model-id, e.g. anthropic/claude-sonnet-5-5 (got: $OPENCODE_MODEL)" >&2; exit 2 ;;
 esac
 
 # Skill destinations. One entry per agent target, so both Claude Code and
@@ -104,6 +119,18 @@ confirm() {  # confirm "question" default(y|n)
 
 SKILL_NAMES() { for d in "$ROOT"/skills/*/; do [ -f "${d}SKILL.md" ] && basename "$d"; done; }
 ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }   # ver_ge have need
+
+# The scene agent is written as a copy so the model is the user's choice. Claude Code and opencode name
+# models differently, so the source file carries no model line; this adds one (or none for "inherit").
+agent_with_model() {  # agent_with_model SRC MODEL
+  awk -v model="$2" '
+    NR == 1 && $0 == "---" { fm = 1; print; next }
+    fm == 1 && /^model:/ { next }
+    fm == 1 && /^name:/ { print; if (model != "inherit") print "model: " model; next }
+    fm == 1 && $0 == "---" { fm = 2; print; print "<!-- papercut-explainer install.sh (generated): rerun the installer to change the model -->"; next }
+    { print }
+  ' "$1"
+}
 
 # ---------------------------------------------------------------- doctor
 doctor() {
@@ -158,7 +185,7 @@ uninstall() {
     if [ -L "$p" ]; then
       case "$(readlink "$p")" in "$ROOT"/*) run rm "$p"; ok "removed $p" ;; *) miss "kept $p (link points elsewhere)" ;; esac
     elif [ -d "$p" ] && [ -f "$p/.papercut-installed" ]; then run rm -rf "$p"; ok "removed $p"
-    elif [ -f "$p" ] && [ -f "$ROOT/agents/$(basename "$p")" ] && cmp -s "$p" "$ROOT/agents/$(basename "$p")"; then run rm "$p"; ok "removed $p"
+    elif [ -f "$p" ] && [ -f "$ROOT/agents/$(basename "$p")" ] && { cmp -s "$p" "$ROOT/agents/$(basename "$p")" || grep -q 'papercut-explainer install.sh (generated)' "$p"; }; then run rm "$p"; ok "removed $p"
     elif [ -e "$p" ]; then miss "kept $p (not an unmodified copy from this installer)"; fi
   done < "$rec"
   run rm -f "$rec"
@@ -272,19 +299,23 @@ step_skills() {
     # ~/.claude/agents, ~/.config/opencode/agents, or <project>/.claude|opencode/agents
     adir="$(dirname "$onedir")/agents"
     run mkdir -p "$adir"
+    local akind=claude amodel="$CLAUDE_MODEL" agen
+    case "$onedir" in */.opencode/skills|*/opencode/skills) akind=opencode; amodel="$OPENCODE_MODEL" ;; esac
     for a in "$ROOT"/agents/*.md; do
       [ -f "$a" ] || continue
       local adst="$adir/$(basename "$a")"
+      agen="$(mktemp)"; agent_with_model "$a" "$amodel" > "$agen"
       if [ -L "$adst" ]; then run rm "$adst"
       elif [ -e "$adst" ]; then
-        if cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
+        if cmp -s "$agen" "$adst" || cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
+        elif grep -q 'papercut-explainer install.sh (generated)' "$adst" 2>/dev/null; then run rm "$adst"   # an earlier run with another model
         elif confirm "$adst exists and differs from this checkout. Back it up and replace?" y; then
           run mkdir -p "$CFG_DIR/backups"; run mv "$adst" "$CFG_DIR/backups/$(basename "$a" .md).$ts.md"; miss "backed up to $CFG_DIR/backups"
-        else miss "kept existing agent $(basename "$a")"; continue; fi
+        else miss "kept existing agent $(basename "$a")"; rm -f "$agen"; continue; fi
       fi
-      if [ "$COPY" = 1 ]; then run cp "$a" "$adst"; else run ln -s "$a" "$adst"; fi
+      run cp "$agen" "$adst"; rm -f "$agen"
       [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
-      ok "agent $(basename "$a" .md) ($adir)"
+      ok "agent $(basename "$a" .md) ($akind, model: $amodel) -> $adir"
     done
   done
   [ "$DRY" = 1 ] || [ ! -f "$CFG_DIR/installed.txt" ] || sort -u "$CFG_DIR/installed.txt" -o "$CFG_DIR/installed.txt"

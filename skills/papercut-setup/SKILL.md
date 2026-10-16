@@ -38,6 +38,8 @@ Ask only what is still open, in one call (AskUserQuestion in Claude Code, the qu
 | Which agent? | Both (default, `--target all`), Claude Code only (`--target claude`) or opencode only (`--target opencode`). |
 | Where do the skills go? | User-wide (the default) or one project (`--project DIR`). |
 | Copy or link? | Symlink (default, updates with `git pull`) or `--copy` (a snapshot). |
+| Scene-agent model, Claude Code? (skip if `--target opencode`) | **Sonnet** (default: cheapest, what the scene agents were tuned on) · **Opus** (strongest; every parallel scene agent bills at Opus rates) · **Haiku** (cheapest, weakest) · **Inherit** (whatever model the session runs). Maps to `--claude-model sonnet\|opus\|haiku\|inherit\|<model id>`. |
+| Scene-agent model, opencode? (skip if `--target claude`) | **Inherit** (default: the session's model) or a specific `provider/model-id` in the form opencode's model picker shows, for example `anthropic/claude-sonnet-5-5`. Maps to `--opencode-model inherit\|<provider/model-id>`. Free open-source models work but are untested here; a weaker model costs QA rounds. |
 | TTS model size (Full) | 1.7B, better prosody, ~4.2 GB (default). 0.6B, lighter and faster, ~2.3 GB. |
 | Voice-clone model (Full) | No (default), or `--with-clone`: the Base model of the same size again. |
 
@@ -46,18 +48,19 @@ Confirm before any multi-GB download. On a machine with no GPU (not Apple Silico
 ## 3. Install
 
 ```
-./install.sh --mode <minimal|standard|full> --yes [--target claude|opencode|all] [--skills-dir DIR | --project DIR] [--copy] [--tts-model 1.7B|0.6B] [--with-clone]
+./install.sh --mode <minimal|standard|full> --yes [--target claude|opencode|all] [--claude-model M] [--opencode-model M] [--skills-dir DIR | --project DIR] [--copy] [--tts-model 1.7B|0.6B] [--with-clone]
 ./install.sh --mode custom --components skills,deps,remotion-skills,pytools,tts,verify --yes
 ```
 
 - Add `--dry-run` first if the user wants to see the plan; it changes nothing.
+- The scene-builder agent is written as a **copy** per agent folder with the chosen `model:` line (Claude Code and opencode name models differently, so the repo's file carries none). Skills stay symlinks. To change the model later: `./install.sh --mode custom --components skills --claude-model opus --yes` (or `--opencode-model ...`).
 - Standard and Full take minutes (npm install, Remotion's Chrome, venvs, model download). Run them in the background and check the output; do not hold a foreground call.
 - What each mode does: Minimal links the skills and the scene-builder agent (into the Claude and opencode skill/agent folders, unless `--target` says otherwise). Standard adds a dependency check, the Remotion agent skills (`npx skills add remotion-dev/skills -g -y -a claude-code` plus `-a opencode`, installed user-wide, so say so when you confirm the plan), a Python venv with numpy, Pillow and soundfile, and a self-test render. Full adds `library/voice/setup_tts.sh`: a voice venv with Qwen3-TTS, an ASR backend (mlx-whisper on Apple Silicon, faster-whisper elsewhere), the model download and a one-line smoke test.
 - The installer writes `PAPERCUT_HOME`, `PAPERCUT_LIB`, `PAPERCUT_PY`, `QWEN_TTS_PY` and `ASR_PY` into `~/.config/papercut-explainer/config.env`. An existing skill folder that differs from this checkout is backed up to `~/.config/papercut-explainer/backups/` (not into the skills folder, so it is not loaded twice); an identical copy, such as one from `npx skills add`, is just replaced.
 
 ## 4. Verify and report
 
-Run `./install.sh --doctor` again with the same `--project`, `--skills-dir` or `--target`. Report what is installed, what failed (the installer prints `needs attention:` with component names), and the fix. A new Claude Code session picks up newly linked skills (restart it); opencode reloads configuration automatically. Then suggest: "make a papercut explainer about <link>", or one stage at a time ("write a hook for...", "storyboard this script", "set up the voice").
+Run `./install.sh --doctor` again with the same `--project`, `--skills-dir` or `--target`. Report what is installed, which scene-agent model each agent got, what failed (the installer prints `needs attention:` with component names), and the fix. A new Claude Code session picks up newly linked skills (restart it); opencode reloads configuration automatically. Then suggest: "make a papercut explainer about <link>", or one stage at a time ("write a hook for...", "storyboard this script", "set up the voice").
 
 ## Troubleshooting
 
@@ -71,6 +74,7 @@ Run `./install.sh --doctor` again with the same `--project`, `--skills-dir` or `
 | Self-test fails | Run `library/tools/selftest.sh` directly to see the failing step. |
 | Skills don't show (Claude Code) | Start a new session. Check `ls ~/.claude/skills` (or `<project>/.claude/skills`). |
 | Skills don't show (opencode) | Config reloads automatically. Check `ls ~/.config/opencode/skills` (or `<project>/.opencode/skills`); opencode also reads the `.claude` paths. |
+| Scene agents cost too much, or run on the wrong model | Rerun the skills step with another model: `./install.sh --mode custom --components skills --claude-model sonnet --yes` (or `--opencode-model inherit`). `inherit` means the session model. |
 | Move from Minimal to Standard | `./install.sh --mode custom --components deps,remotion-skills,pytools,verify --yes` |
 | Add the voice later | `./install.sh --mode custom --components tts --yes [--tts-model 0.6B] [--with-clone]` |
 | Remove it | `./install.sh --uninstall` removes the links it recorded. It leaves `config.env`, the venvs under `~/.local/share/papercut-explainer` and the Hugging Face cache; delete those by hand for the space. |

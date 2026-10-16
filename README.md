@@ -81,6 +81,8 @@ Non-interactive and scoped installs:
 
 By default skills are symlinked into `~/.claude/skills` and `~/.config/opencode/skills` (pass `--target claude` or `--target opencode` for only one) and the subagent into the sibling `agents` folders (`~/.claude/agents`, `~/.config/opencode/agents`; opencode also discovers the `.claude` paths), so a `git pull` updates them. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), replaces an identical existing skill folder (such as one from `npx skills add`) and moves a different one to `~/.config/papercut-explainer/backups/` instead of the skills folder, and does not touch your shell profile.
 
+The scene-builder subagent is written as a copy (not a link) with the model you pick: `--claude-model sonnet|opus|haiku|inherit|<id>` (default `sonnet`) and `--opencode-model inherit|<provider/model-id>` (default `inherit`, the session's model). Rerun the installer to change it; `papercut-setup` asks.
+
 Opencode-only minimal install:
 
 ```bash
