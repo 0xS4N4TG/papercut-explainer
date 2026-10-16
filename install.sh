@@ -36,14 +36,14 @@ export PAPERCUT_CONFIG="$CFG_DIR/config.env"
 . "$LIB/env.sh"
 export PAPERCUT_LIB="$LIB"   # this checkout wins over a stale path left in an older config file
 
-MODE=""; COMPONENTS=""; TARGET="all"; SKILLS_DIR=""; SKILLS_DIR_EXPLICIT=0; PROJECT_DIR=""
+MODE=""; COMPONENTS=""; TARGET="all"; TARGET_EXPLICIT=0; SKILLS_DIR=""; SKILLS_DIR_EXPLICIT=0; PROJECT_DIR=""
 COPY=0; YES=0; DRY=0
 TTS_MODEL=1.7B; WITH_CLONE=0; DOCTOR=0; UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --mode) MODE=${2:?--mode needs a value}; shift 2 ;;
     --components) COMPONENTS=${2:?--components needs a value}; shift 2 ;;
-    --target) TARGET=${2:?--target needs claude, opencode or all}; shift 2 ;;
+    --target) TARGET=${2:?--target needs claude, opencode or all}; TARGET_EXPLICIT=1; shift 2 ;;
     --skills-dir) SKILLS_DIR=${2:?--skills-dir needs a value}; SKILLS_DIR_EXPLICIT=1; shift 2 ;;
     --project) [ -d "${2:?--project needs a folder}" ] || { echo "--project: $2 is not a folder" >&2; exit 2; }
                PROJECT_DIR="$(cd "$2" && pwd)"; shift 2 ;;
@@ -69,21 +69,21 @@ esac
 # native path keeps discovery explicit and survives config changes).
 # --skills-dir overrides the list with a single dir (legacy behaviour);
 # --project scopes the install to one project folder instead of user-wide.
-SKILLS_DIRS=""
+SKILLS_DIRS=()
 if [ "$SKILLS_DIR_EXPLICIT" = 1 ]; then
-  SKILLS_DIRS="$SKILLS_DIR"
+  SKILLS_DIRS=("$SKILLS_DIR")
 else
   if [ -n "$PROJECT_DIR" ]; then
     case "$TARGET" in
-      claude)   SKILLS_DIRS="$PROJECT_DIR/.claude/skills" ;;
-      opencode) SKILLS_DIRS="$PROJECT_DIR/.opencode/skills" ;;
-      all)      SKILLS_DIRS="$PROJECT_DIR/.claude/skills $PROJECT_DIR/.opencode/skills" ;;
+      claude)   SKILLS_DIRS=("$PROJECT_DIR/.claude/skills") ;;
+      opencode) SKILLS_DIRS=("$PROJECT_DIR/.opencode/skills") ;;
+      all)      SKILLS_DIRS=("$PROJECT_DIR/.claude/skills" "$PROJECT_DIR/.opencode/skills") ;;
     esac
   else
     case "$TARGET" in
-      claude)   SKILLS_DIRS="$HOME/.claude/skills" ;;
-      opencode) SKILLS_DIRS="$HOME/.config/opencode/skills" ;;
-      all)      SKILLS_DIRS="$HOME/.claude/skills $HOME/.config/opencode/skills" ;;
+      claude)   SKILLS_DIRS=("$HOME/.claude/skills") ;;
+      opencode) SKILLS_DIRS=("$HOME/.config/opencode/skills") ;;
+      all)      SKILLS_DIRS=("$HOME/.claude/skills" "$HOME/.config/opencode/skills") ;;
     esac
   fi
 fi
@@ -109,13 +109,22 @@ ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }   
 doctor() {
   say "papercut-explainer: status (target: $TARGET)"
   local n=0 t=0 L_SKILLS=0 L_STD=1 L_FULL=0
-  for dir in $SKILLS_DIRS; do
+  local best=0 dir_n nskills misses=() complete=()
+  for dir in "${SKILLS_DIRS[@]}"; do
+    dir_n=0
     for s in $(SKILL_NAMES); do
-      t=$((t+1))
-      if [ -e "$dir/$s/SKILL.md" ]; then n=$((n+1)); else miss "skill $s not in $dir"; fi
+      if [ -e "$dir/$s/SKILL.md" ]; then dir_n=$((dir_n+1)); else misses+=("skill $s not in $dir"); fi
     done
+    n=$((n+dir_n)); t=$((t+$(SKILL_NAMES | wc -w)))
+    [ "$dir_n" -gt "$best" ] && best=$dir_n
+    if [ "$dir_n" = "$(SKILL_NAMES | wc -w | tr -d " ")" ]; then complete+=("$dir"); fi
   done
-  if [ "$n" = "$t" ] && [ "$t" -gt 0 ]; then ok "skills: $n/$t in $SKILLS_DIRS"; L_SKILLS=1; else bad "skills: $n/$t installed"; fi
+  nskills=$(SKILL_NAMES | wc -w | tr -d " ")
+  # No explicit --target: Claude-only and opencode-only installs are both fine, so one complete location passes.
+  if [ "$TARGET_EXPLICIT" = 0 ] && [ "$SKILLS_DIR_EXPLICIT" = 0 ] && [ "${#complete[@]}" -gt 0 ]; then
+    ok "skills: $nskills/$nskills in ${complete[*]}"; L_SKILLS=1
+  elif [ "$n" = "$t" ] && [ "$t" -gt 0 ]; then ok "skills: $n/$t in ${SKILLS_DIRS[*]}"; L_SKILLS=1
+  else for m in "${misses[@]}"; do miss "$m"; done; bad "skills: $n/$t installed"; fi
   [ -f "$PAPERCUT_CONFIG" ] && ok "config: $PAPERCUT_CONFIG (PAPERCUT_LIB=$PAPERCUT_LIB)" || miss "config file missing ($PAPERCUT_CONFIG)"
   if command -v node >/dev/null 2>&1; then v="$(node -v | sed 's/^v//')"; if ver_ge "$v" 20; then ok "node $v"; else bad "node $v (need 20+)"; L_STD=0; fi; else miss "node (need 20+)"; L_STD=0; fi
   command -v npm >/dev/null 2>&1 && ok "npm" || { miss "npm"; L_STD=0; }
@@ -123,7 +132,7 @@ doctor() {
   command -v rsync >/dev/null 2>&1 && ok "rsync" || { miss "rsync"; L_STD=0; }
   command -v python3 >/dev/null 2>&1 && ok "python3 $(python3 -c 'import platform;print(platform.python_version())')" || { miss "python3"; L_STD=0; }
   local remo_found=0 d
-  for d in $SKILLS_DIRS "$HOME/.claude/skills" "$HOME/.config/opencode/skills" "$HOME/.agents/skills"; do
+  for d in "${SKILLS_DIRS[@]}" "$HOME/.claude/skills" "$HOME/.config/opencode/skills" "$HOME/.agents/skills"; do
     [ -f "$d/remotion-best-practices/SKILL.md" ] && remo_found=1
   done
   if [ $remo_found = 1 ]; then ok "remotion skills"; else miss "remotion skills (npx skills add remotion-dev/skills, see step_remotion)"; L_STD=0; fi
@@ -196,7 +205,7 @@ case "$MODE" in
       done
     else
       interactive || { echo "--mode custom needs --components or a terminal" >&2; exit 2; }
-      confirm "Install the skills (links into $SKILLS_DIRS)?" y && C_SKILLS=1
+      confirm "Install the skills (links into ${SKILLS_DIRS[*]})?" y && C_SKILLS=1
       confirm "Check dependencies (node 20+, npm, ffmpeg, python3)?" y && C_DEPS=1
       confirm "Install the Remotion agent skills (npx skills add remotion-dev/skills)?" y && C_REMO=1
       confirm "Set up Python tools (venv with numpy + Pillow, for QA contact sheets)?" y && C_PY=1
@@ -213,7 +222,7 @@ esac
 
 if [ "$MODE" != custom ] && interactive; then
   say "Plan ($MODE)"
-  [ $C_SKILLS = 1 ] && echo "  - link the skills into $SKILLS_DIRS (target: $TARGET)"
+  [ $C_SKILLS = 1 ] && echo "  - link the skills into ${SKILLS_DIRS[*]} (target: $TARGET)"
   [ $C_DEPS = 1 ]   && echo "  - check node, npm, ffmpeg, python3"
   [ $C_REMO = 1 ]   && echo "  - install the Remotion agent skills (global)"
   [ $C_PY = 1 ]     && echo "  - create a Python venv with numpy + Pillow"
@@ -239,7 +248,7 @@ step_config() {
 
 step_skills() {
   local onedir adir
-  for onedir in $SKILLS_DIRS; do
+  for onedir in "${SKILLS_DIRS[@]}"; do
     say "skills -> $onedir"
     run mkdir -p "$onedir" "$CFG_DIR"
     local ts bak; ts="$(date +%Y%m%d-%H%M%S)"; bak="$CFG_DIR/backups"
