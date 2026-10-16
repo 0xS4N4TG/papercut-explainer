@@ -90,7 +90,7 @@ node -v; ffmpeg -version | head -1
 "$QWEN_TTS_PY" -c 'import qwen_tts'
 ```
 
-The first three lines passing means Standard. The `qwen_tts` import passing as well means Full. If a stage needs more than the install provides, say so in one line, run `./install.sh --doctor` from the repo root, and hand over to `papercut-setup` instead of improvising. Find the root with `readlink` on the installed skill folder (under `.claude/skills` or `.config/opencode/skills`), or `PAPERCUT_HOME` in the config file.
+The first three lines passing means Standard. The `qwen_tts` import passing as well means Full. If a stage needs more than the install provides, say so in one line, run `./install.sh --doctor` from the repo root, and hand over to `papercut-setup` instead of improvising. Find the root with `readlink` on the installed skill folder (under `.claude/skills`, `.agents/skills`, `.config/opencode/skills` or another harness's skills folder), or `PAPERCUT_HOME` in the config file.
 
 ## Rules across stages
 

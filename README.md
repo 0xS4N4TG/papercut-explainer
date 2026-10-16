@@ -1,6 +1,6 @@
 # papercut-explainer
 
-Make short vertical explainer reels that look like layered construction paper, with Claude Code or opencode doing the work.
+Make short vertical explainer reels that look like layered construction paper, with the coding agent you already use doing the work: Claude Code, OpenCode, Codex, Gemini CLI, Cursor, Copilot and any other tool that reads Agent Skills.
 
 ![A two-scene reel built with the library: hook title, parallax camera, word-by-word captions, a tape-pull cut and a comment-keyword CTA](docs/img/hello-reel.gif)
 
@@ -8,7 +8,7 @@ Make short vertical explainer reels that look like layered construction paper, w
 
 This repo is two things that work together:
 
-- **Nine agent skills** (Claude Code and opencode) that run the whole pipeline: strategy, hook, script, storyboard, voice, build, QA, and an installer. Ask for a reel, or run one stage on its own.
+- **Nine agent skills** (the open `SKILL.md` format, so they load in most coding agents; see [Works with](#works-with)) that run the whole pipeline: strategy, hook, script, storyboard, voice, build, QA, and an installer. Ask for a reel, or run one stage on its own.
 - **A Remotion library** the skills build on: a paper-cut component kit, 24 backdrops, 17 camera moves, 10 scene transitions, film-look layers, 79 sound effects and 8 music beds, plus the scripts that tie them into an episode.
 
 You describe the video ("explain this repo in 25 seconds"). The skills research it, write a script on a fixed spoken spine, plan every camera move and cut, make or fake the voiceover, and build the scenes in Remotion. You review stills and the final cut.
@@ -38,7 +38,7 @@ Each camera move and cut, with its props and when to use it, is in [`library/pap
 
 ## Install
 
-You need Node 20+, npm, ffmpeg, rsync and Python 3. Claude Code or opencode is the front end.
+You need Node 20+, npm, ffmpeg, rsync and Python 3. Any coding agent in [Works with](#works-with) is the front end.
 
 **With `npx skills`** (skills only, fastest):
 
@@ -46,7 +46,7 @@ You need Node 20+, npm, ffmpeg, rsync and Python 3. Claude Code or opencode is t
 npx skills add 0xS4N4TG/papercut-explainer
 ```
 
-This installs the nine skills into your agents' skill folders (Claude Code and the others the CLI supports). It does not fetch the Remotion library or the scripts. Open Claude Code and say "set up papercut-explainer": `papercut-setup` clones the repo, asks how much you want (Minimal, Standard, Full) and installs it. Add `-g` for a user-wide install, `--skill papercut-hook` to take one skill.
+This installs the nine skills into your agents' skill folders (the CLI supports about 80 agents). It does not fetch the Remotion library or the scripts. Open your agent and say "set up papercut-explainer": `papercut-setup` clones the repo, asks how much you want (Minimal, Standard, Full) and installs it. Add `-g` for a user-wide install, `--skill papercut-hook` to take one skill.
 
 **With git** (everything, including the library):
 
@@ -79,23 +79,57 @@ Non-interactive and scoped installs:
 ./install.sh --uninstall                                 # remove the links it made
 ```
 
-By default skills are symlinked into `~/.claude/skills` and `~/.config/opencode/skills` (pass `--target claude` or `--target opencode` for only one) and the subagent into the sibling `agents` folders (`~/.claude/agents`, `~/.config/opencode/agents`; opencode also discovers the `.claude` paths), so a `git pull` updates them. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), replaces an identical existing skill folder (such as one from `npx skills add`) and moves a different one to `~/.config/papercut-explainer/backups/` instead of the skills folder, and does not touch your shell profile.
+By default the installer looks for coding agents on your machine (`--target auto`; Claude Code if it finds none) and symlinks the skills into each one's skills folder, so a `git pull` updates them. Pick harnesses yourself with `--target claude,codex,gemini` (names in [Works with](#works-with)), or `--target all`. The installer writes `~/.config/papercut-explainer/config.env` with `PAPERCUT_LIB` and the Python paths it created; the library scripts and the skills read it. It never installs system packages (it prints the `brew` or `apt` line instead), replaces an identical existing skill folder (such as one from `npx skills add`) and moves a different one to `~/.config/papercut-explainer/backups/` instead of the skills folder, and does not touch your shell profile.
 
-The scene-builder subagent is written as a copy (not a link) with the model you pick: `--claude-model sonnet|opus|haiku|inherit|<id>` (default `sonnet`) and `--opencode-model inherit|<provider/model-id>` (default `inherit`, the session's model). Rerun the installer to change it; `papercut-setup` asks.
-
-Opencode-only minimal install:
+**The scene-builder subagent** (`papercut-scene`, which builds the scenes in parallel) is written as a copy per harness, in that harness's own format, with the model you choose. Rerun the installer to change it; `papercut-setup` asks.
 
 ```bash
-./install.sh --mode minimal --target opencode --yes
+./install.sh --mode minimal --target claude,opencode,codex --yes                       # defaults: Claude sonnet, others inherit the session model
+./install.sh --mode minimal --target claude --claude-model opus --yes                  # opus | sonnet | haiku | inherit | a model id
+./install.sh --mode minimal --target opencode --opencode-model anthropic/claude-sonnet-5-5 --yes
+./install.sh --mode minimal --target codex --agent-model codex=<model-id> --yes        # any harness with file subagents
 ```
 
-Prefer to let the agent do it? Open Claude Code or opencode in this folder and say **"set up papercut-explainer"**. The `papercut-setup` skill asks which mode you want, confirms any large download, runs the installer with the right flags and checks the result.
+Prefer to let the agent do it? Open your agent in this folder and say **"set up papercut-explainer"**. The `papercut-setup` skill detects your agents, asks which mode and which scene-agent model you want, confirms any large download, runs the installer with the right flags and checks the result.
 
-Install by hand: symlink or copy each folder in `skills/` into `~/.claude/skills/` and `~/.config/opencode/skills/`, `agents/papercut-scene.md` into `~/.claude/agents/` and `~/.config/opencode/agents/`, then `export PAPERCUT_LIB="$PWD/library"`.
+Install by hand: symlink or copy each folder in `skills/` into your agent's skills folder, then `export PAPERCUT_LIB="$PWD/library"`. For a subagent file, copy `agents/papercut-scene.md` (Claude Code) or `agents/opencode/papercut-scene.md` (OpenCode) and add the `model:` line yourself; Codex and Gemini files are generated by the installer.
+
+## Works with
+
+The skills are Agent Skills (`SKILL.md` folders with only `name` and `description` in the frontmatter, checked against the spec), so any agent that loads them works. The installer knows where each one looks:
+
+| Harness | `--target` | Skills folder | Scene subagent file | Status |
+|---|---|---|---|---|
+| Claude Code | `claude` | `~/.claude/skills` | `~/.claude/agents/*.md` | In daily use |
+| OpenCode | `opencode` | `~/.config/opencode/skills` | `~/.config/opencode/agents/*.md` | Skills, agent file and model line checked on 1.18; 2.x checked by the contributor who added it |
+| Codex CLI | `codex` | `~/.agents/skills` | `~/.codex/agents/*.toml` | Paths and fields from OpenAI's docs; the TOML parses; not run in Codex |
+| Gemini CLI | `gemini` | `~/.agents/skills` | `~/.gemini/agents/*.md` | Paths and fields from Google's docs; not run in Gemini CLI |
+| Cursor, GitHub Copilot, Amp, Goose, Cline, Roo Code, Kilo Code, Zed, Factory Droid, Warp, Augment, Junie, OpenHands, Crush | `cursor` `copilot` `amp` `goose` `cline` `roo` `kilo` `zed` `droid` `warp` `augment` `junie` `openhands` `crush` | `~/.agents/skills` | none (Cursor, Copilot in VS Code and Goose read `~/.claude/agents` themselves) | Paths from each vendor's docs; not run |
+| Kiro, Qwen Code, Windsurf | `kiro` `qwen` `windsurf` | `~/.kiro/skills`, `~/.qwen/skills`, `~/.codeium/windsurf/skills` | none | Paths from the vendors' docs or the `skills` CLI; not run |
+| Anything else that reads `~/.agents/skills` | `agents` | `~/.agents/skills` | none | |
+| Aider (no skills support) | none | | | Run `aider --read AGENTS.md`; the file points at the skills |
+
+"Not run" means the folder and file format follow the vendor's documentation as of 17 Oct 2026 and the installer's output was checked for shape, but the agent itself wasn't started. If one breaks, [open an issue](../../issues) with the harness version. The table lives in [`harnesses.sh`](harnesses.sh): adding a harness is one line.
+
+Harnesses without file subagents build the scenes themselves, one after another, or through their own parallel-task feature. The output is the same; it takes longer.
+
+Opening this checkout in OpenCode finds the skills and the scene agent with no install (checked on 1.18; `.opencode/` and `opencode.jsonc` point at `skills/` and `agents/opencode/`). Agents that read a project's `.agents/skills` should find them through the `.agents/skills` link, which is untested. [`AGENTS.md`](AGENTS.md) covers agents that read that file instead.
+
+## Models other than Claude (DeepSeek and others)
+
+The skills are plain instructions, so any model that can call tools, read the QA stills (image input) and follow a long brief can run them. Weaker models cost more QA rounds. Nothing here has been run end to end on a non-Anthropic model by the maintainer, so treat these as starting points; DeepSeek's page for each agent is the authority: [api-docs.deepseek.com/quick_start/agent_integrations](https://api-docs.deepseek.com/quick_start/agent_integrations).
+
+| Agent | What to do (DeepSeek model ids as of 17 Oct 2026: `deepseek-flash`, `deepseek-v4-pro`) |
+|---|---|
+| OpenCode | `/connect`, choose `deepseek`, paste your key. Then `./install.sh --target opencode --opencode-model deepseek/deepseek-flash --yes`. |
+| Codex CLI | Add DeepSeek's `[model_providers.deepseek]` block to `~/.codex/config.toml` (their Codex page has it; prefer an env var for the key over a literal token). Then `./install.sh --target codex --agent-model codex=deepseek-flash --yes`. |
+| Claude Code | Point it at DeepSeek's Anthropic-compatible endpoint with `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and the `ANTHROPIC_DEFAULT_*_MODEL` variables from their Claude Code page. The scene agent's `model: sonnet` then resolves through `ANTHROPIC_DEFAULT_SONNET_MODEL`, so leave `--claude-model` alone. |
+
+The same pattern works for any provider your agent supports: connect it in the agent, then pass its model id to `--opencode-model` or `--agent-model`.
 
 ## Use it
 
-Open Claude Code or opencode in any folder you want the episode to live in and ask for a reel:
+Open your agent in any folder you want the episode to live in and ask for a reel:
 
 > Make a papercut explainer about https://github.com/example/echolark. 25 seconds, comment keyword PAPER.
 
@@ -227,7 +261,7 @@ Projects keep a snapshot of the kit in `src/lib/`, so an old episode renders the
 | Python | 3.9+ for the tools; 3.10–3.12 for the voice venv (the installer uses `uv` if you have it, else `python3.12`/`3.11`/`3.10`) |
 | Chrome or Chromium | for the SFX and music render only (`CHROME_PATH` to override). Video renders use Remotion's own headless browser, downloaded on first render. |
 | Disk | about 0.7 GB per project for `node_modules` (shared by APFS cloning on macOS; plain copy elsewhere, or set `DONOR`); 4–6 GB for local voice |
-| Claude Code / opencode | the skills and subagent target both (see `--target`) |
+| A coding agent | any in [Works with](#works-with); the installer finds the ones you have (`--target`) |
 
 ## Cost
 
@@ -255,7 +289,8 @@ What moves the cost, largest first:
 | Model download stalls | Rerun `library/voice/setup_tts.sh`; finished files are kept. It already sets `HF_HUB_DISABLE_XET=1`. |
 | First render is slow | Remotion downloads its headless browser (about 200 MB) once. |
 | `--gl=angle` rejected | Edit the flag in `library/tools/render.py` and `qa.sh` for your Chrome build. |
-| A skill does not trigger | Check `ls ~/.claude/skills` and `ls ~/.config/opencode/skills`; restart Claude Code after installing (opencode reloads automatically). |
+| A skill does not trigger | Check the harness's skills folder (table in [Works with](#works-with)); `./install.sh --doctor` lists what it found. Restart Claude Code, Codex and Gemini CLI after installing; opencode reloads on its own. |
+| opencode: "Configuration is invalid ... tools" | You have an old copy of the Claude agent file in an opencode folder. Rerun `./install.sh --target opencode`; it writes the opencode version. |
 
 ## Limits
 

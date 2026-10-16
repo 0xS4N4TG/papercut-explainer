@@ -16,14 +16,18 @@
 # Options
 #   --mode M              minimal | standard | full | custom
 #   --components a,b,c    with --mode custom: skills,deps,remotion-skills,pytools,tts,verify
-#   --target T            claude | opencode | all (default all: install for both agents)
+#   --target T            which agent harnesses to install for: auto (default: every one found on this machine,
+#                         else claude) | all | a comma list, e.g. claude,codex,gemini. Names: see harnesses.sh
+#                         (claude opencode codex gemini cursor copilot amp goose cline roo kilo zed droid warp
+#                         augment junie openhands crush kiro qwen windsurf, or "agents" for the shared ~/.agents/skills)
 #   --skills-dir DIR      where skills go (overrides --target with a single dir);
 #                         the subagent goes in the sibling folder DIR/../agents
-#   --project DIR         install skills into DIR/.claude/skills and DIR/.opencode/skills
-#                         instead (one project only; --target filters which of the two)
+#   --project DIR         install into DIR (that harness's project folders, e.g. DIR/.claude/skills,
+#                         DIR/.agents/skills) instead of user-wide
 #   --claude-model M      model for the papercut-scene subagent in Claude Code:
 #                         sonnet (default) | opus | haiku | inherit (use the session model) | a full model id
-#   --opencode-model M    model for it in opencode: inherit (default, session model) | provider/model-id
+#   --opencode-model M    model for it in opencode: inherit (default) | provider/model-id
+#   --agent-model T=M     the same for any other harness with file subagents (codex, gemini), e.g. codex=deepseek-flash
 #   --copy                copy the skills instead of symlinking them (no live updates from this checkout)
 #   --tts-model 1.7B|0.6B model size for the voice step (default 1.7B)
 #   --with-clone          also download the voice-cloning model
@@ -39,20 +43,21 @@ export PAPERCUT_CONFIG="$CFG_DIR/config.env"
 . "$LIB/env.sh"
 export PAPERCUT_LIB="$LIB"   # this checkout wins over a stale path left in an older config file
 
-MODE=""; COMPONENTS=""; TARGET="all"; TARGET_EXPLICIT=0; SKILLS_DIR=""; SKILLS_DIR_EXPLICIT=0; PROJECT_DIR=""
+MODE=""; COMPONENTS=""; TARGET="auto"; TARGET_EXPLICIT=0; SKILLS_DIR=""; SKILLS_DIR_EXPLICIT=0; PROJECT_DIR=""
 COPY=0; YES=0; DRY=0
-CLAUDE_MODEL=sonnet; OPENCODE_MODEL=inherit
+AGENT_MODELS="claude=sonnet"; MODEL_FLAGS=""
 TTS_MODEL=1.7B; WITH_CLONE=0; DOCTOR=0; UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --mode) MODE=${2:?--mode needs a value}; shift 2 ;;
     --components) COMPONENTS=${2:?--components needs a value}; shift 2 ;;
-    --target) TARGET=${2:?--target needs claude, opencode or all}; TARGET_EXPLICIT=1; shift 2 ;;
+    --target) TARGET=${2:?--target needs auto, all or a comma list of harness names}; TARGET_EXPLICIT=1; shift 2 ;;
     --skills-dir) SKILLS_DIR=${2:?--skills-dir needs a value}; SKILLS_DIR_EXPLICIT=1; shift 2 ;;
     --project) [ -d "${2:?--project needs a folder}" ] || { echo "--project: $2 is not a folder" >&2; exit 2; }
                PROJECT_DIR="$(cd "$2" && pwd)"; shift 2 ;;
-    --claude-model) CLAUDE_MODEL=${2:?--claude-model needs sonnet, opus, haiku, inherit or a model id}; shift 2 ;;
-    --opencode-model) OPENCODE_MODEL=${2:?--opencode-model needs inherit or provider/model-id}; shift 2 ;;
+    --claude-model) MODEL_FLAGS="$MODEL_FLAGS claude=${2:?--claude-model needs sonnet, opus, haiku, inherit or a model id}"; shift 2 ;;
+    --opencode-model) MODEL_FLAGS="$MODEL_FLAGS opencode=${2:?--opencode-model needs inherit or provider/model-id}"; shift 2 ;;
+    --agent-model) MODEL_FLAGS="$MODEL_FLAGS ${2:?--agent-model needs NAME=MODEL, e.g. codex=deepseek-flash}"; shift 2 ;;
     --copy) COPY=1; shift ;;
     --tts-model) TTS_MODEL=${2:?--tts-model needs 1.7B or 0.6B}; shift 2 ;;
     --with-clone) WITH_CLONE=1; shift ;;
@@ -65,42 +70,34 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-case "$TARGET" in
-  claude|opencode|all) ;;
-  *) echo "--target needs claude, opencode or all (got: $TARGET)" >&2; exit 2 ;;
-esac
+. "$ROOT/harnesses.sh"
+resolve_targets "$TARGET"
 
-case "$CLAUDE_MODEL" in
-  ""|*[!A-Za-z0-9._:-]*) echo "--claude-model needs sonnet, opus, haiku, inherit or a model id (got: $CLAUDE_MODEL)" >&2; exit 2 ;;
-esac
-case "$OPENCODE_MODEL" in
-  inherit) ;;
-  */*) case "$OPENCODE_MODEL" in *[!A-Za-z0-9._:/-]*|/*|*/) echo "--opencode-model needs inherit or provider/model-id (got: $OPENCODE_MODEL)" >&2; exit 2 ;; esac ;;
-  *) echo "--opencode-model needs inherit or provider/model-id, e.g. anthropic/claude-sonnet-5-5 (got: $OPENCODE_MODEL)" >&2; exit 2 ;;
-esac
+# Models for the scene agent. Defaults: Claude Code sonnet, everything else inherits the session model.
+for kv in $MODEL_FLAGS; do
+  case "$kv" in *=*) ;; *) echo "--agent-model needs NAME=MODEL (got: $kv)" >&2; exit 2 ;; esac
+  h_known "${kv%%=*}" || { echo "--agent-model: unknown harness '${kv%%=*}'" >&2; exit 2; }
+  valid_model "${kv%%=*}" "${kv#*=}" || { echo "bad model '${kv#*=}' for ${kv%%=*} (opencode needs provider/model-id; others a plain id or inherit)" >&2; exit 2; }
+  AGENT_MODELS="$AGENT_MODELS $kv"
+done
 
-# Skill destinations. One entry per agent target, so both Claude Code and
-# opencode pick the skills up (opencode also reads ~/.claude/skills, but the
-# native path keeps discovery explicit and survives config changes).
-# --skills-dir overrides the list with a single dir (legacy behaviour);
-# --project scopes the install to one project folder instead of user-wide.
-SKILLS_DIRS=()
+# Destinations: skills folders and subagent jobs, de-duplicated (many harnesses share ~/.agents/skills).
+# --skills-dir overrides everything with one folder (legacy); --project uses each harness's project folders.
+SKILLS_DIRS=(); AGENT_JOBS=()   # a job is "kind|dir|harness"
 if [ "$SKILLS_DIR_EXPLICIT" = 1 ]; then
   SKILLS_DIRS=("$SKILLS_DIR")
+  case "$SKILLS_DIR" in */.opencode/skills|*/opencode/skills) AGENT_JOBS=("opencode|$(dirname "$SKILLS_DIR")/agents|opencode") ;;
+                        *) AGENT_JOBS=("claude|$(dirname "$SKILLS_DIR")/agents|claude") ;; esac
 else
-  if [ -n "$PROJECT_DIR" ]; then
-    case "$TARGET" in
-      claude)   SKILLS_DIRS=("$PROJECT_DIR/.claude/skills") ;;
-      opencode) SKILLS_DIRS=("$PROJECT_DIR/.opencode/skills") ;;
-      all)      SKILLS_DIRS=("$PROJECT_DIR/.claude/skills" "$PROJECT_DIR/.opencode/skills") ;;
-    esac
-  else
-    case "$TARGET" in
-      claude)   SKILLS_DIRS=("$HOME/.claude/skills") ;;
-      opencode) SKILLS_DIRS=("$HOME/.config/opencode/skills") ;;
-      all)      SKILLS_DIRS=("$HOME/.claude/skills" "$HOME/.config/opencode/skills") ;;
-    esac
-  fi
+  for h in "${TARGET_LIST[@]}"; do
+    if [ -n "$PROJECT_DIR" ]; then sd="$PROJECT_DIR/$(h_row "$h" | cut -d'|' -f3)"; ad="$(h_row "$h" | cut -d'|' -f6)"; [ -n "$ad" ] && [ "$ad" != "-" ] && ad="$PROJECT_DIR/$ad"
+    else sd="$(h_field "$h" 2)"; ad="$(h_field "$h" 5)"; fi
+    in_array "$sd" "${SKILLS_DIRS[@]+"${SKILLS_DIRS[@]}"}" || SKILLS_DIRS+=("$sd")
+    kind="$(h_field "$h" 4)"
+    if [ "$kind" != none ] && [ -n "$ad" ] && [ "$ad" != "-" ]; then
+      job="$kind|$ad|$h"; in_array "$job" "${AGENT_JOBS[@]+"${AGENT_JOBS[@]}"}" || AGENT_JOBS+=("$job")
+    fi
+  done
 fi
 
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; N=$'\033[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
@@ -120,21 +117,55 @@ confirm() {  # confirm "question" default(y|n)
 SKILL_NAMES() { for d in "$ROOT"/skills/*/; do [ -f "${d}SKILL.md" ] && basename "$d"; done; }
 ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }   # ver_ge have need
 
-# The scene agent is written as a copy so the model is the user's choice. Claude Code and opencode name
-# models differently, so the source file carries no model line; this adds one (or none for "inherit").
-agent_with_model() {  # agent_with_model SRC MODEL
-  awk -v model="$2" '
+# The scene agent is written as a copy per harness, so the model is the user's choice and each format is right.
+# Claude Code, opencode, Codex and Gemini name models and tools differently; the repo keeps one source per format
+# family (agents/papercut-scene.md for Claude, agents/opencode/ for opencode) and derives the Codex and Gemini files.
+AGENT_MARK='papercut-explainer install.sh (generated)'
+agent_with_model() {  # agent_with_model SRC MODEL: markdown, model line after name: (none for "inherit")
+  awk -v model="$2" -v mark="$AGENT_MARK" '
     NR == 1 && $0 == "---" { fm = 1; print; next }
     fm == 1 && /^model:/ { next }
     fm == 1 && /^name:/ { print; if (model != "inherit") print "model: " model; next }
-    fm == 1 && $0 == "---" { fm = 2; print; print "<!-- papercut-explainer install.sh (generated): rerun the installer to change the model -->"; next }
+    fm == 1 && $0 == "---" { fm = 2; print; print "<!-- " mark ": rerun the installer to change the model -->"; next }
     { print }
   ' "$1"
+}
+agent_for_gemini() {  # Gemini validates frontmatter strictly: name, description, model only (no Claude tools:/effort:)
+  awk -v model="$2" -v mark="$AGENT_MARK" '
+    NR == 1 && $0 == "---" { fm = 1; print; next }
+    fm == 1 && /^(name|description):/ { print; next }
+    fm == 1 && $0 == "---" { if (model != "inherit") print "model: " model; fm = 2; print; print "<!-- " mark ": rerun the installer to change the model -->"; next }
+    fm == 1 { next }
+    { print }
+  ' "$1"
+}
+agent_for_codex() {  # Codex subagents are TOML: name, description, developer_instructions (+ model, model_reasoning_effort)
+  python3 -B - "$1" "$2" "$AGENT_MARK" <<'PY'
+import json, re, sys
+src, model, mark = sys.argv[1:4]
+fm, body = re.match(r'---\n(.*?)\n---\n(.*)', open(src).read(), re.S).groups()
+field = lambda k: (re.search(r'^%s:\s*(.+)$' % k, fm, re.M) or [None, None])[1]
+instr = body.strip()
+assert "'''" not in instr
+out = ["# " + mark + ": rerun the installer to change the model",
+       "name = " + json.dumps(field("name")), "description = " + json.dumps(field("description"))]
+if model != "inherit": out.append("model = " + json.dumps(model))
+if field("effort"): out.append("model_reasoning_effort = " + json.dumps(field("effort").strip()))
+out.append("developer_instructions = '''\n" + instr + "\n'''")
+print("\n".join(out))
+PY
+}
+agent_render() {  # agent_render KIND SRC MODEL
+  case "$1" in
+    gemini) agent_for_gemini "$2" "$3" ;;
+    codex)  agent_for_codex "$2" "$3" ;;
+    *)      agent_with_model "$2" "$3" ;;
+  esac
 }
 
 # ---------------------------------------------------------------- doctor
 doctor() {
-  say "papercut-explainer: status (target: $TARGET)"
+  say "papercut-explainer: status (target: $TARGET = ${TARGET_LIST[*]})"
   local n=0 t=0 L_SKILLS=0 L_STD=1 L_FULL=0
   local best=0 dir_n nskills misses=() complete=()
   for dir in "${SKILLS_DIRS[@]}"; do
@@ -159,7 +190,7 @@ doctor() {
   command -v rsync >/dev/null 2>&1 && ok "rsync" || { miss "rsync"; L_STD=0; }
   command -v python3 >/dev/null 2>&1 && ok "python3 $(python3 -c 'import platform;print(platform.python_version())')" || { miss "python3"; L_STD=0; }
   local remo_found=0 d
-  for d in "${SKILLS_DIRS[@]}" "$HOME/.claude/skills" "$HOME/.config/opencode/skills" "$HOME/.agents/skills"; do
+  for d in "${SKILLS_DIRS[@]}" "$HOME/.claude/skills" "$HOME/.config/opencode/skills" "$HOME/.agents/skills" "$HOME/.gemini/skills" "$HOME/.cursor/skills"; do
     [ -f "$d/remotion-best-practices/SKILL.md" ] && remo_found=1
   done
   if [ $remo_found = 1 ]; then ok "remotion skills"; else miss "remotion skills (npx skills add remotion-dev/skills, see step_remotion)"; L_STD=0; fi
@@ -185,7 +216,7 @@ uninstall() {
     if [ -L "$p" ]; then
       case "$(readlink "$p")" in "$ROOT"/*) run rm "$p"; ok "removed $p" ;; *) miss "kept $p (link points elsewhere)" ;; esac
     elif [ -d "$p" ] && [ -f "$p/.papercut-installed" ]; then run rm -rf "$p"; ok "removed $p"
-    elif [ -f "$p" ] && [ -f "$ROOT/agents/$(basename "$p")" ] && { cmp -s "$p" "$ROOT/agents/$(basename "$p")" || grep -q 'papercut-explainer install.sh (generated)' "$p"; }; then run rm "$p"; ok "removed $p"
+    elif [ -f "$p" ] && { grep -q "$AGENT_MARK" "$p" 2>/dev/null || cmp -s "$p" "$ROOT/agents/$(basename "$p")" 2>/dev/null; }; then run rm "$p"; ok "removed $p"
     elif [ -e "$p" ]; then miss "kept $p (not an unmodified copy from this installer)"; fi
   done < "$rec"
   run rm -f "$rec"
@@ -249,7 +280,7 @@ esac
 
 if [ "$MODE" != custom ] && interactive; then
   say "Plan ($MODE)"
-  [ $C_SKILLS = 1 ] && echo "  - link the skills into ${SKILLS_DIRS[*]} (target: $TARGET)"
+  [ $C_SKILLS = 1 ] && echo "  - link the skills into ${SKILLS_DIRS[*]} (${TARGET_LIST[*]})"
   [ $C_DEPS = 1 ]   && echo "  - check node, npm, ffmpeg, python3"
   [ $C_REMO = 1 ]   && echo "  - install the Remotion agent skills (global)"
   [ $C_PY = 1 ]     && echo "  - create a Python venv with numpy + Pillow"
@@ -273,8 +304,36 @@ step_config() {
   ok "$PAPERCUT_CONFIG"
 }
 
+# The scene-builder subagent, one file per (format, folder) job from the harness table.
+install_agents() {
+  local job kind adir harness model asrc a ext adst agen ts; ts="$(date +%Y%m%d-%H%M%S)"
+  for job in "${AGENT_JOBS[@]+"${AGENT_JOBS[@]}"}"; do
+    kind="${job%%|*}"; adir="${job#*|}"; harness="${adir##*|}"; adir="${adir%|*}"
+    model="$(agent_model "$harness")"; asrc="$ROOT/agents"; [ "$kind" = opencode ] && asrc="$ROOT/agents/opencode"
+    ext=md; [ "$kind" = codex ] && ext=toml
+    run mkdir -p "$adir"
+    for a in "$asrc"/*.md; do
+      [ -f "$a" ] || continue
+      adst="$adir/$(basename "$a" .md).$ext"
+      if [ "$kind" = codex ] && ! command -v python3 >/dev/null 2>&1; then miss "skipped the Codex agent file: python3 not found"; continue; fi
+      agen="$(mktemp)"; agent_render "$kind" "$a" "$model" > "$agen"
+      if [ -L "$adst" ]; then run rm "$adst"
+      elif [ -e "$adst" ]; then
+        if cmp -s "$agen" "$adst" || cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
+        elif grep -q "$AGENT_MARK" "$adst" 2>/dev/null; then run rm "$adst"   # an earlier run, maybe with another model
+        elif confirm "$adst exists and differs from this checkout. Back it up and replace?" y; then
+          run mkdir -p "$CFG_DIR/backups"; run mv "$adst" "$CFG_DIR/backups/$(basename "$adst" ".$ext").$ts.$ext"; miss "backed up to $CFG_DIR/backups"
+        else miss "kept existing agent $(basename "$adst")"; rm -f "$agen"; continue; fi
+      fi
+      run cp "$agen" "$adst"; rm -f "$agen"
+      [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
+      ok "agent $(basename "$a" .md) ($kind, model: $model) -> $adir"
+    done
+  done
+}
+
 step_skills() {
-  local onedir adir
+  local onedir
   for onedir in "${SKILLS_DIRS[@]}"; do
     say "skills -> $onedir"
     run mkdir -p "$onedir" "$CFG_DIR"
@@ -295,30 +354,8 @@ step_skills() {
       [ "$DRY" = 1 ] || echo "$dst" >> "$CFG_DIR/installed.txt"
       ok "$s ($onedir)"
     done
-    # the scene-builder subagent sits next to the skills dir:
-    # ~/.claude/agents, ~/.config/opencode/agents, or <project>/.claude|opencode/agents
-    adir="$(dirname "$onedir")/agents"
-    run mkdir -p "$adir"
-    local akind=claude amodel="$CLAUDE_MODEL" agen
-    case "$onedir" in */.opencode/skills|*/opencode/skills) akind=opencode; amodel="$OPENCODE_MODEL" ;; esac
-    local asrc="$ROOT/agents"; [ "$akind" = opencode ] && asrc="$ROOT/agents/opencode"
-    for a in "$asrc"/*.md; do
-      [ -f "$a" ] || continue
-      local adst="$adir/$(basename "$a")"
-      agen="$(mktemp)"; agent_with_model "$a" "$amodel" > "$agen"
-      if [ -L "$adst" ]; then run rm "$adst"
-      elif [ -e "$adst" ]; then
-        if cmp -s "$agen" "$adst" || cmp -s "$a" "$adst"; then run rm "$adst"   # identical copy: refresh it
-        elif grep -q 'papercut-explainer install.sh (generated)' "$adst" 2>/dev/null; then run rm "$adst"   # an earlier run with another model
-        elif confirm "$adst exists and differs from this checkout. Back it up and replace?" y; then
-          run mkdir -p "$CFG_DIR/backups"; run mv "$adst" "$CFG_DIR/backups/$(basename "$a" .md).$ts.md"; miss "backed up to $CFG_DIR/backups"
-        else miss "kept existing agent $(basename "$a")"; rm -f "$agen"; continue; fi
-      fi
-      run cp "$agen" "$adst"; rm -f "$agen"
-      [ "$DRY" = 1 ] || echo "$adst" >> "$CFG_DIR/installed.txt"
-      ok "agent $(basename "$a" .md) ($akind, model: $amodel) -> $adir"
-    done
   done
+  install_agents
   [ "$DRY" = 1 ] || [ ! -f "$CFG_DIR/installed.txt" ] || sort -u "$CFG_DIR/installed.txt" -o "$CFG_DIR/installed.txt"
 }
 
@@ -338,25 +375,19 @@ step_deps() {
 }
 
 step_remotion() {
-  say "Remotion agent skills (target: $TARGET)"
-  local need_cc=0 need_oc=0
-  case "$TARGET" in
-    claude)   need_cc=1 ;;
-    opencode) need_oc=1 ;;
-    all)      need_cc=1; need_oc=1 ;;
-  esac
-  [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ] && need_cc=0
-  [ -f "$HOME/.config/opencode/skills/remotion-best-practices/SKILL.md" ] && need_oc=0
-  # opencode also discovers ~/.claude/skills, so a Claude-side install covers both;
-  # the native opencode install below just makes it explicit.
-  if [ $need_cc = 0 ] && [ $need_oc = 0 ]; then ok "already installed"; return; fi
+  say "Remotion agent skills (${TARGET_LIST[*]})"
   command -v npx >/dev/null 2>&1 || { note_fail remotion-skills "npx not found"; return 1; }
-  if [ $need_cc = 1 ]; then
-    if ! run npx -y skills@latest add remotion-dev/skills -g -y -a claude-code; then note_fail remotion-skills "npx skills add failed for claude-code; run it by hand"; fi
-  fi
-  if [ $need_oc = 1 ]; then
-    if ! run npx -y skills@latest add remotion-dev/skills -g -y -a opencode; then note_fail remotion-skills "npx skills add failed for opencode; run it by hand"; fi
-  fi
+  # `npx skills` installs into each harness's own folder. Skip a harness that already has the skill where it reads skills.
+  local h id udir done_ids=()
+  for h in "${TARGET_LIST[@]}"; do
+    id="$(h_field "$h" 7)"; udir="$(h_field "$h" 2)"
+    [ -f "$udir/remotion-best-practices/SKILL.md" ] && continue
+    [ -f "$HOME/.claude/skills/remotion-best-practices/SKILL.md" ] && [ "$h" = claude ] && continue
+    in_array "$id" "${done_ids[@]+"${done_ids[@]}"}" && continue
+    done_ids+=("$id")
+    run npx -y skills@latest add remotion-dev/skills -g -y -a "$id" || note_fail remotion-skills "npx skills add failed for $id; run it by hand"
+  done
+  [ "${#done_ids[@]}" -gt 0 ] || ok "already installed"
 }
 
 step_pytools() {
@@ -398,9 +429,9 @@ say "Done ($MODE)"
 if [ -n "$FAILED" ]; then bad "needs attention:$FAILED"; echo "After fixing, rerun the failed part with --mode custom --components <names>, or check everything with ./install.sh --doctor."; exit 1; fi
 cat <<EOF
 
-Next: open Claude Code or opencode and say
+Next: open your coding agent (Claude Code, opencode, Codex, Gemini CLI, Cursor ...) and say
   "make a papercut explainer about <link>"
 or run one stage on its own: "write a hook for ...", "storyboard this script", "set up the voice".
 
-Check the setup any time: ./install.sh --doctor [--target claude|opencode|all]
+Check the setup any time: ./install.sh --doctor [--target auto|all|claude,codex,...]
 EOF

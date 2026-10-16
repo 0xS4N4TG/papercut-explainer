@@ -11,7 +11,7 @@ Build every episode on the library instead of writing a Remotion project from sc
 
 - Install: **Standard** or Full. Needs the library, node 20+, npm, ffmpeg, Python tools (numpy, Pillow, soundfile) and Chrome or Chromium for the audio render. Probe with the commands in `papercut-explainer`; if something is missing, run `./install.sh --doctor` and hand over to `papercut-setup`.
 - Library: `$PAPERCUT_LIB`, else the `PAPERCUT_LIB=` line in `~/.config/papercut-explainer/config.env`, else ask once. With no library at all, build from the sketches in `../papercut-explainer/references/remotion-recipes.md`.
-- Load the Remotion best-practices skill first (`remotion-best-practices`, from the Remotion plugin or `npx skills add remotion-dev/skills -g -y -a claude-code` plus `-a opencode` for opencode) and follow its routing for markup, captions and the Studio.
+- Load the Remotion best-practices skill first (`remotion-best-practices`, from the Remotion plugin, or `npx skills add remotion-dev/skills -g -y -a <your harness id>`; `install.sh --mode standard` does this) and follow its routing for markup, captions and the Studio.
 - Needs `papercut/STORYBOARD.md` and `narration/script.json` from the earlier stages.
 - Smoke test of the whole toolchain: `library/tools/selftest.sh` builds `examples/hello-reel/` in a throwaway folder and renders one still.
 
@@ -48,7 +48,7 @@ Follow `../papercut-explainer/references/asset-prompts.md`: an image tool (anyth
 ## 4. Scenes
 
 1. Build `S01Hook` yourself first, from the HOOK block. It is the reference scene the agents match (cue constants, the camera, clamped `interpolate`).
-2. Hand the rest to scene agents in parallel, grouped by scene (2-3 scenes each; more agents cost more startup context). Use the `papercut-scene` agent that `install.sh` links into the agents folder (`~/.claude/agents` for Claude Code, `~/.config/opencode/agents` for opencode; a general agent also works). Spawn via the Task tool in Claude Code or the subagent tool in opencode. The brief is `library/papercut/AGENT_BRIEF.md`. The spawn message gives the project path, each agent's scenes with absolute frame ranges, a QA folder name and the value of `$PAPERCUT_LIB`.
+2. Hand the rest to scene agents in parallel, grouped by scene (2-3 scenes each; more agents cost more startup context). Use the `papercut-scene` agent that `install.sh` wrote for your harness (Claude Code `~/.claude/agents`, OpenCode `~/.config/opencode/agents`, Codex `~/.codex/agents`, Gemini CLI `~/.gemini/agents`); a general agent also works. Spawn it with your harness's own mechanism (the Task tool in Claude Code, the subagent tool in opencode, Codex's subagents, Gemini's agent tool). **If your harness has no subagents, build the scenes yourself one at a time**, in the same order and with the same brief; it is slower, not different. The brief is `library/papercut/AGENT_BRIEF.md`. The spawn message gives the project path, each agent's scenes with absolute frame ranges, a QA folder name and the value of `$PAPERCUT_LIB`.
 3. File ownership: an agent writes only `src/scenes/<Scene>.tsx`, an optional `<Scene>.parts.tsx` and `tools/cue_sheet.d/<Scene>.json`. Never `src/lib/**`, other scenes, `index.ts`, `plan.json`, `episode.json` or the storyboard.
 4. Agents read `library/papercut/CATALOG.md` and `library/audio/CATALOG.md`, not the kit source, and reuse components, prop sets and scene templates (`kit/scenes/`, for example `CtaPhoneDM` for the CTA) before drawing anything new.
 
