@@ -1,1 +1,1 @@
-../../agents/papercut-scene.md
+../../agents/opencode/papercut-scene.md

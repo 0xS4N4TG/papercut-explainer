@@ -301,7 +301,8 @@ step_skills() {
     run mkdir -p "$adir"
     local akind=claude amodel="$CLAUDE_MODEL" agen
     case "$onedir" in */.opencode/skills|*/opencode/skills) akind=opencode; amodel="$OPENCODE_MODEL" ;; esac
-    for a in "$ROOT"/agents/*.md; do
+    local asrc="$ROOT/agents"; [ "$akind" = opencode ] && asrc="$ROOT/agents/opencode"
+    for a in "$asrc"/*.md; do
       [ -f "$a" ] || continue
       local adst="$adir/$(basename "$a")"
       agen="$(mktemp)"; agent_with_model "$a" "$amodel" > "$agen"
