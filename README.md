@@ -15,7 +15,7 @@ You describe the video ("explain this repo in 25 seconds"). The skills research 
 
 ## Contents
 
-[What is in the box](#what-is-in-the-box) · [Install](#install) · [Use it](#use-it) · [Examples](#examples) · [How the workflow runs](#how-the-workflow-runs) · [Voice](#voice) · [Customising](#customising) · [Requirements](#requirements) · [Cost](#cost) · [Troubleshooting](#troubleshooting) · [Limits](#limits) · [Licence](#licence)
+[What is in the box](#what-is-in-the-box) · [Install](#install) · [Use it](#use-it) · [Examples](#examples) · [How the workflow runs](#how-the-workflow-runs) · [Voice](#voice) · [Customising](#customising) · [Requirements](#requirements) · [Cost](#cost) · [Troubleshooting](#troubleshooting) · [Limits](#limits) · [Star history](#star-history) · [Licence](#licence)
 
 ## What is in the box
 
@@ -299,6 +299,15 @@ What moves the cost, largest first:
 - `render.py` writes ProRes intermediates, several GB per episode in `out/cache`.
 - Two-speaker dialogue helpers ship (`dialogue_timeline.py`, `SPEAKER`/`ROLE` options) with no template.
 - The base `Critter` is a boxy creature with four leg stubs and two tall eyes. Swap its drawing in `kit/cast/Critter.tsx` if you want your own mascot.
+
+## Star history
+
+<a href="https://www.star-history.com/#0xS4N4TG/papercut-explainer&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=0xS4N4TG/papercut-explainer&type=Date&theme=dark" />
+    <img alt="Star history of 0xS4N4TG/papercut-explainer" src="https://api.star-history.com/image?repos=0xS4N4TG/papercut-explainer&type=Date" />
+  </picture>
+</a>
 
 ## Licence
 
